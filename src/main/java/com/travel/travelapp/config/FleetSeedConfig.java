@@ -7,6 +7,7 @@ import com.travel.travelapp.entity.TripSchedule;
 import com.travel.travelapp.repository.BusRepository;
 import com.travel.travelapp.repository.RouteRepository;
 import com.travel.travelapp.repository.TripScheduleRepository;
+import com.travel.travelapp.util.FarePolicy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -43,22 +44,24 @@ public class FleetSeedConfig {
             plannedBusNumbers.clear();
 
             // Daily commute fleet (15 buses total)
-            seedRoutePair("Gaya", 110, 3, 1, LocalTime.of(8, 0), 180, 260, 180, false);
-            seedRoutePair("Jehanabad", 50, 2, 1, LocalTime.of(7, 30), 105, 140, 90, false);
-            seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(7, 0), 150, 180, 120, false);
-            seedRoutePair("Arrah", 65, 2, 1, LocalTime.of(8, 30), 105, 170, 110, false);
-            seedRoutePair("Bihta", 35, 1, 1, LocalTime.of(9, 0), 60, 110, 70, false);
+            seedRoutePair("Gaya", 110, 3, 1, LocalTime.of(8, 0), 180, false);
+            seedRoutePair("Jehanabad", 50, 2, 1, LocalTime.of(7, 30), 105, false);
+            seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(7, 0), 150, false);
+            seedRoutePair("Arrah", 65, 2, 1, LocalTime.of(8, 30), 105, false);
+            seedRoutePair("Bihta", 35, 1, 1, LocalTime.of(9, 0), 60, false);
 
             // Tourism fleet (5 AC buses total, AC only) - Bihar key tourism circuits
-            seedRoutePair("Bodh Gaya", 125, 1, 0, LocalTime.of(6, 30), 210, 340, 0, true);
-            seedRoutePair("Rajgir", 100, 1, 0, LocalTime.of(6, 0), 150, 320, 0, true);
-            seedRoutePair("Nalanda", 95, 1, 0, LocalTime.of(7, 0), 165, 300, 0, true);
-            seedRoutePair("Vaishali", 60, 1, 0, LocalTime.of(8, 0), 120, 280, 0, true);
-            seedRoutePair("Pawapuri", 95, 1, 0, LocalTime.of(7, 30), 165, 300, 0, true);
+            seedRoutePair("Bodh Gaya", 125, 1, 0, LocalTime.of(6, 30), 210, true);
+            seedRoutePair("Rajgir", 100, 1, 0, LocalTime.of(6, 0), 150, true);
+            seedRoutePair("Nalanda", 95, 1, 0, LocalTime.of(7, 0), 165, true);
+            seedRoutePair("Vaishali", 60, 1, 0, LocalTime.of(8, 0), 120, true);
+            seedRoutePair("Pawapuri", 95, 1, 0, LocalTime.of(7, 30), 165, true);
 
             if (pruneLegacy) {
                 deactivateLegacyFleet();
             }
+
+            syncActiveScheduleFares();
         };
     }
 
@@ -69,8 +72,6 @@ public class FleetSeedConfig {
             int nonAcCount,
             LocalTime outboundDeparture,
             int travelMinutes,
-            int acFare,
-            int nonAcFare,
             boolean tourismBusNumbering) {
         Route outbound = getOrCreateRoute("Patna", city, distanceKm, tourismBusNumbering);
         Route inbound = getOrCreateRoute(city, "Patna", distanceKm, tourismBusNumbering);
@@ -80,13 +81,15 @@ public class FleetSeedConfig {
                     ? String.format("NT-TO-AC-%03d", tourismAcSeq++)
                     : String.format("NT-AC-%03d", acBusSeq++);
             Bus bus = getOrCreateBus(busNumber, BusType.AC, tourismBusNumbering ? 36 : 40);
-            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, BigDecimal.valueOf(acFare));
+            BigDecimal fare = FarePolicy.fareFor(outbound, bus);
+            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, fare);
         }
 
         for (int i = 0; i < nonAcCount; i++) {
             String busNumber = String.format("NT-NA-%03d", nonAcBusSeq++);
             Bus bus = getOrCreateBus(busNumber, BusType.NON_AC, 42);
-            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, BigDecimal.valueOf(nonAcFare));
+            BigDecimal fare = FarePolicy.fareFor(outbound, bus);
+            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, fare);
         }
     }
 
@@ -112,6 +115,7 @@ public class FleetSeedConfig {
         return routeRepository
                 .findBySourceIgnoreCaseAndDestinationIgnoreCase(source, destination)
                 .map(route -> {
+                    route.setDistanceKm(distanceKm);
                     route.setActive(true);
                     route.setTourismRoute(tourismRoute);
                     return routeRepository.save(route);
@@ -154,8 +158,15 @@ public class FleetSeedConfig {
             LocalTime departureTime,
             LocalTime arrivalTime,
             BigDecimal fare) {
-        if (tripScheduleRepository.existsByBusIdAndTravelDateAndRouteIdAndDepartureTime(
-                bus.getId(), travelDate, route.getId(), departureTime)) {
+        var matchingSchedules = tripScheduleRepository.findAllByBusIdAndTravelDateAndRouteIdAndDepartureTimeOrderByIdAsc(
+                bus.getId(), travelDate, route.getId(), departureTime);
+        if (!matchingSchedules.isEmpty()) {
+            for (TripSchedule schedule : matchingSchedules) {
+                schedule.setArrivalTime(arrivalTime);
+                schedule.setBaseFare(fare);
+                schedule.setActive(true);
+                tripScheduleRepository.save(schedule);
+            }
             return;
         }
 
@@ -184,6 +195,13 @@ public class FleetSeedConfig {
     private void deactivateSchedulesForBus(Long busId) {
         for (TripSchedule schedule : tripScheduleRepository.findByBusIdAndActiveTrue(busId)) {
             schedule.setActive(false);
+            tripScheduleRepository.save(schedule);
+        }
+    }
+
+    private void syncActiveScheduleFares() {
+        for (TripSchedule schedule : tripScheduleRepository.findByActiveTrue()) {
+            schedule.setBaseFare(FarePolicy.fareFor(schedule.getRoute(), schedule.getBus()));
             tripScheduleRepository.save(schedule);
         }
     }

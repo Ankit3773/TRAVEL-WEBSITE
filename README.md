@@ -45,6 +45,22 @@ Run tests:
 ./mvnw test
 ```
 
+Current integration suite covers:
+- customer booking flow
+- seat locking and release
+- online payment checkout/verify flow
+- cancellation flow
+- admin CRUD and metrics endpoints
+
+## Frontend Flow
+- Home/search page: route + date search on `/`
+- Bus list page: rendered from schedule search results
+- Seat selection page: bus-style seat map with auto-refresh polling while active
+- Payment page: supports `PAY_ON_BOARD` confirmation and mock `ONLINE` checkout
+- Booking confirmation page: final booking + payment summary
+
+The frontend is served directly by Spring Boot from `src/main/resources/static`.
+
 ## API Docs (Swagger)
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
@@ -239,6 +255,15 @@ Reset password:
 - Background cleanup of expired locks (`APP_BOOKING_LOCK_CLEANUP_MS`, default `60000`)
 - Conflict response (`409`) if any requested seat is already locked or booked
 - Seat release on lock expiry, lock release endpoint, or booking cancellation
+
+## Stage 6 UI Notes
+- The homepage now behaves as a guided booking flow rather than a single mixed dashboard
+- Search results open a dedicated bus list step
+- Seat selection uses polling-based refresh for near-real-time availability updates
+- ONLINE bookings move through:
+  - seat selection
+  - payment page
+  - confirmation page
 
 ## Stage 5 Payment Notes
 - `PAY_ON_BOARD` bookings are created directly with `paymentStatus=PENDING`

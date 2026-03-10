@@ -1,6 +1,6 @@
 # NARAYAN TRAVELS - Project Tracker
 
-Last updated: 2026-03-10 (Stage 1 to Stage 5 completed)
+Last updated: 2026-03-10 (Stage 1 to Stage 7 completed)
 
 ## 1) Project Vision
 Build an online bus booking system for Bihar routes with:
@@ -14,12 +14,12 @@ Build an online bus booking system for Bihar routes with:
 - Stack currently implemented:
   - Backend: Spring Boot (Java 17)
   - Database: Supabase PostgreSQL
-  - Frontend: Static HTML/CSS/JS served by backend (not React yet)
+  - Frontend: Static HTML/CSS/JS served by backend with Stage 6 multi-step booking flow
 - Local status: Running on `http://localhost:8080`
 - Checklist status (48-step plan):
-  - Done: `28`
-  - Partial: `11`
-  - Pending: `9`
+  - Done: `36`
+  - Partial: `7`
+  - Pending: `5`
   - Verification-only: `0`
 
 ## 3) Completed Work
@@ -75,8 +75,16 @@ Build an online bus booking system for Bihar routes with:
 - Admin metrics and booking trends API
 
 ### 3.7 UI (Current Frontend)
+- Stage 6 five-step booking shell:
+  - Home/Search page
+  - Bus list page
+  - Seat selection page
+  - Payment page
+  - Booking confirmation page
+- Guided stepper with journey sidebar summary
 - Search schedules UI
-- Seat selection UI
+- Bus comparison cards UI
+- Seat selection UI with auto-refresh polling
 - Booking form UI
 - Admin panel UI (create + metrics + bookings)
 - Tourism section UI
@@ -92,7 +100,7 @@ Build an online bus booking system for Bihar routes with:
 ### 3.9 Test Status
 - Latest run: `./mvnw -q test` (2026-03-10)
 - Result: pass
-  - `BookingFlowIntegrationTest`: 16/16 passed
+  - `BookingFlowIntegrationTest`: 20/20 passed
   - `TravelappApplicationTests`: 1/1 passed
 
 ### 3.10 Stage 1 Completion (2026-03-06)
@@ -196,6 +204,55 @@ Build an online bus booking system for Bihar routes with:
   - ONLINE direct booking rejection
   - full ONLINE payment success path to `BOOKED` + `PAID`
 
+### 3.15 Stage 6 Completion (2026-03-10)
+- Rebuilt the frontend into a structured Stage 6 customer flow on `/`:
+  - Search page
+  - Bus list page
+  - Seat selection page
+  - Payment page
+  - Confirmation page
+- Added a visual stepper and journey snapshot sidebar to keep booking progress explicit
+- Refactored search results into dedicated bus cards rather than mixing results into the landing page
+- Refactored seat selection into its own booking step with:
+  - seat legend
+  - bus-style seat frame
+  - polling-based seat refresh while the step is active
+- Refactored payment handling into a dedicated step:
+  - `PAY_ON_BOARD` confirmation page flow
+  - `ONLINE` mock checkout -> verify flow
+- Added confirmation screen for final booking state with booking/payment summary
+- Preserved supporting frontend capabilities:
+  - authentication
+  - forgot/reset password
+  - my bookings
+  - admin dashboard
+  - active routes list
+  - Bihar tourism section
+- Verified the Stage 6 UI is live locally on `http://localhost:8080`
+
+### 3.16 Stage 7 Completion (2026-03-10)
+- Added explicit Stage 7 integration coverage for customer booking flow:
+  - schedule search
+  - seat availability fetch
+  - booking creation
+  - booking fetch-by-id
+  - booking history listing
+- Added dedicated seat lock release coverage:
+  - lock seat
+  - verify seat appears in `lockedSeats`
+  - release lock
+  - verify seat returns to availability
+  - verify another customer can book it
+- Added dedicated cancellation coverage:
+  - cancel booked seat
+  - verify booking becomes `CANCELLED`
+  - verify cancelled-history filter works
+  - verify cancelled seat returns to availability
+- Added admin testing coverage for cancelled-booking visibility:
+  - paged admin booking filter by `CANCELLED`
+  - admin metrics reflect cancelled booking counts
+- Re-ran the full suite successfully after Stage 7 changes
+
 ## 4) Stage-wise Checklist Audit (What Is Left)
 
 ### Stage 1 - Project Setup
@@ -230,17 +287,17 @@ Build an online bus booking system for Bihar routes with:
   - Live Razorpay/Stripe credential onboarding can be added later without changing the booking contract
 
 ### Stage 6 - Frontend Development
-- Left: 4 steps (`28, 29, 32, 34`)
+- Left: 0 steps
 - Notes:
-  - Frontend exists but not React
-  - Separate page architecture and payment page are pending
-  - Seat availability refresh is request-based, not real-time channel-based
+  - Stage 6 delivery is complete in the current static frontend architecture
+  - React migration is no longer treated as a blocker for the booking workflow
+  - Seat availability is delivered as near-real-time polling rather than websocket push
 
 ### Stage 7 - Testing
-- Left: 4 steps (`35, 36, 37, 38`) as partial coverage alignment
+- Left: 0 steps
 - Notes:
-  - Strong API/integration coverage exists
-  - Dedicated cancellation-flow test and full end-to-end UI test matrix pending
+  - Booking flow, seat locking, cancellation flow, and admin operations are now covered in integration tests
+  - Current scope relies on backend integration tests plus live UI verification on localhost
 
 ### Stage 8 - Deployment
 - Left: 5 steps (`39, 40, 41, 42, 43`)

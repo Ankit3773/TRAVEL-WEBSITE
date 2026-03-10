@@ -29,7 +29,6 @@ public class UpdateScheduleRequest {
     @NotNull
     private LocalTime arrivalTime;
 
-    @NotNull
     @DecimalMin("0.0")
     private BigDecimal baseFare;
 }

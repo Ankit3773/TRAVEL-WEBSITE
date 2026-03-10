@@ -17,6 +17,7 @@ import com.travel.travelapp.repository.BusRepository;
 import com.travel.travelapp.repository.RouteRepository;
 import com.travel.travelapp.repository.SeatRepository;
 import com.travel.travelapp.repository.TripScheduleRepository;
+import com.travel.travelapp.util.FarePolicy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -326,6 +327,186 @@ class BookingFlowIntegrationTest {
     }
 
     @Test
+    void customerBookingFlowShouldSearchBookFetchAndListHistory() throws Exception {
+        String customerToken = registerCustomerAndGetToken("booking-flow-" + UUID.randomUUID() + "@example.com");
+        String travelDate = LocalDate.now().plusDays(1).toString();
+
+        String schedulesResponse = mockMvc.perform(get("/api/schedules")
+                        .param("source", "Patna")
+                        .param("destination", "Gaya")
+                        .param("date", travelDate))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(tripScheduleId))
+                .andExpect(jsonPath("$[0].route.source").value("Patna"))
+                .andExpect(jsonPath("$[0].route.destination").value("Gaya"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode schedules = objectMapper.readTree(schedulesResponse);
+        assertThat(schedules.size()).isEqualTo(1);
+
+        mockMvc.perform(get("/api/schedules/{scheduleId}/seats", tripScheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSeats").value(40))
+                .andExpect(jsonPath("$.availableSeats[0]").value(1));
+
+        String bookingResponse = mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(6))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tripScheduleId").value(tripScheduleId))
+                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()))
+                .andExpect(jsonPath("$.seatNumber").value(6))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long bookingId = objectMapper.readTree(bookingResponse).get("bookingId").asLong();
+
+        mockMvc.perform(get("/api/bookings/{bookingId}", bookingId)
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookingId").value(bookingId))
+                .andExpect(jsonPath("$.seatNumbers[0]").value(6));
+
+        mockMvc.perform(get("/api/my-bookings")
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].bookingId").value(bookingId))
+                .andExpect(jsonPath("$[0].bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$[0].seatNumbers[0]").value(6));
+    }
+
+    @Test
+    void releasingSeatLockShouldMakeSeatAvailableToAnotherCustomer() throws Exception {
+        String firstUserToken = registerCustomerAndGetToken("release-lock-a-" + UUID.randomUUID() + "@example.com");
+        String secondUserToken = registerCustomerAndGetToken("release-lock-b-" + UUID.randomUUID() + "@example.com");
+
+        String lockResponse = mockMvc.perform(post("/api/bookings/locks")
+                        .header("Authorization", "Bearer " + firstUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(13))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.LOCKED.name()))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long bookingId = objectMapper.readTree(lockResponse).get("bookingId").asLong();
+
+        String lockedSeatResponse = mockMvc.perform(get("/api/schedules/{scheduleId}/seats", tripScheduleId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode lockedSeatJson = objectMapper.readTree(lockedSeatResponse);
+        assertThat(intList(lockedSeatJson, "lockedSeats")).contains(13);
+
+        mockMvc.perform(delete("/api/bookings/locks/{bookingId}", bookingId)
+                        .header("Authorization", "Bearer " + firstUserToken))
+                .andExpect(status().isNoContent());
+
+        String releasedSeatResponse = mockMvc.perform(get("/api/schedules/{scheduleId}/seats", tripScheduleId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode releasedSeatJson = objectMapper.readTree(releasedSeatResponse);
+        assertThat(intList(releasedSeatJson, "lockedSeats")).isEmpty();
+        assertThat(intList(releasedSeatJson, "availableSeats")).contains(13);
+
+        mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + secondUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(13))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$.seatNumber").value(13));
+    }
+
+    @Test
+    void cancellingBookingShouldFreeSeatAndAppearInCancelledHistory() throws Exception {
+        String customerToken = registerCustomerAndGetToken("cancel-flow-" + UUID.randomUUID() + "@example.com");
+
+        String bookingResponse = mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(14))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long bookingId = objectMapper.readTree(bookingResponse).get("bookingId").asLong();
+
+        mockMvc.perform(delete("/api/bookings/{bookingId}", bookingId)
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/my-bookings")
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].bookingId").value(bookingId))
+                .andExpect(jsonPath("$[0].bookingStatus").value(BookingStatus.CANCELLED.name()));
+
+        mockMvc.perform(get("/api/my-bookings/paged")
+                        .param("status", BookingStatus.CANCELLED.name())
+                        .param("page", "0")
+                        .param("size", "10")
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].bookingId").value(bookingId))
+                .andExpect(jsonPath("$.items[0].bookingStatus").value(BookingStatus.CANCELLED.name()));
+
+        String seatResponse = mockMvc.perform(get("/api/schedules/{scheduleId}/seats", tripScheduleId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode seatJson = objectMapper.readTree(seatResponse);
+        assertThat(intList(seatJson, "bookedSeats")).doesNotContain(14);
+        assertThat(intList(seatJson, "availableSeats")).contains(14);
+    }
+
+    @Test
+    void adminPagedBookingsAndMetricsShouldIncludeCancelledRecords() throws Exception {
+        String customerToken = registerCustomerAndGetToken("admin-cancel-view-" + UUID.randomUUID() + "@example.com");
+
+        String bookingResponse = mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(17))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long bookingId = objectMapper.readTree(bookingResponse).get("bookingId").asLong();
+
+        mockMvc.perform(delete("/api/bookings/{bookingId}", bookingId)
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isNoContent());
+
+        String adminToken = loginAndGetToken("admin@narayantravels.in", "Admin123!");
+
+        mockMvc.perform(get("/api/admin/bookings/paged")
+                        .param("status", BookingStatus.CANCELLED.name())
+                        .param("page", "0")
+                        .param("size", "10")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].bookingId").value(bookingId))
+                .andExpect(jsonPath("$.items[0].bookingStatus").value(BookingStatus.CANCELLED.name()));
+
+        mockMvc.perform(get("/api/admin/metrics")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalBookings").value(1))
+                .andExpect(jsonPath("$.confirmedBookings").value(0))
+                .andExpect(jsonPath("$.cancelledBookings").value(1));
+    }
+
+    @Test
     void adminBookingsEndpointShouldRequireAdminRole() throws Exception {
         String customerToken = registerCustomerAndGetToken("customer2@example.com");
 
@@ -544,6 +725,7 @@ class BookingFlowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(schedulePayload)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.baseFare").value(425.0))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -563,7 +745,8 @@ class BookingFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(updateSchedulePayload)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.departureTime").value("10:00:00"))
-                .andExpect(jsonPath("$.arrivalTime").value("12:30:00"));
+                .andExpect(jsonPath("$.arrivalTime").value("12:30:00"))
+                .andExpect(jsonPath("$.baseFare").value(425.0));
 
         mockMvc.perform(get("/api/admin/schedules")
                         .header("Authorization", "Bearer " + adminToken))
@@ -592,6 +775,22 @@ class BookingFlowIntegrationTest {
         assertThat(route.getActive()).isFalse();
         assertThat(bus.getActive()).isFalse();
         assertThat(schedule.getActive()).isFalse();
+    }
+
+    @Test
+    void farePolicyShouldPriceRegularAcAndNonAcRoutesDifferently() {
+        Route route = new Route();
+        route.setDistanceKm(100);
+        route.setTourismRoute(false);
+
+        Bus acBus = new Bus();
+        acBus.setBusType(BusType.AC);
+
+        Bus nonAcBus = new Bus();
+        nonAcBus.setBusType(BusType.NON_AC);
+
+        assertThat(FarePolicy.fareFor(route, acBus)).isEqualByComparingTo("300.00");
+        assertThat(FarePolicy.fareFor(route, nonAcBus)).isEqualByComparingTo("250.00");
     }
 
     private String registerCustomerAndGetToken(String email) throws Exception {
@@ -642,6 +841,14 @@ class BookingFlowIntegrationTest {
         payload.put("email", email);
         payload.put("password", password);
         return payload;
+    }
+
+    private List<Integer> intList(JsonNode jsonNode, String fieldName) {
+        List<Integer> values = new ArrayList<>();
+        for (JsonNode item : jsonNode.withArray(fieldName)) {
+            values.add(item.asInt());
+        }
+        return values;
     }
 
     private Integer performConcurrentBooking(

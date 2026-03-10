@@ -24,6 +24,7 @@ import com.travel.travelapp.repository.RouteRepository;
 import com.travel.travelapp.repository.SeatRepository;
 import com.travel.travelapp.repository.TripScheduleRepository;
 import com.travel.travelapp.repository.projection.BookingDailyTrendProjection;
+import com.travel.travelapp.util.FarePolicy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -82,7 +83,9 @@ public class AdminService {
         route.setDistanceKm(request.getDistanceKm());
         route.setActive(true);
         route.setTourismRoute(false);
-        return routeRepository.save(route);
+        Route savedRoute = routeRepository.save(route);
+        refreshScheduleFaresForRoute(savedRoute);
+        return savedRoute;
     }
 
     @Transactional
@@ -104,7 +107,9 @@ public class AdminService {
         route.setDistanceKm(request.getDistanceKm());
         route.setTourismRoute(request.getTourismRoute());
         route.setActive(true);
-        return routeRepository.save(route);
+        Route savedRoute = routeRepository.save(route);
+        refreshScheduleFaresForRoute(savedRoute);
+        return savedRoute;
     }
 
     @Transactional
@@ -202,7 +207,7 @@ public class AdminService {
         schedule.setTravelDate(request.getTravelDate());
         schedule.setDepartureTime(request.getDepartureTime());
         schedule.setArrivalTime(request.getArrivalTime());
-        schedule.setBaseFare(request.getBaseFare());
+        schedule.setBaseFare(FarePolicy.fareFor(route, bus));
         schedule.setActive(true);
 
         return tripScheduleRepository.save(schedule);
@@ -232,7 +237,7 @@ public class AdminService {
         schedule.setTravelDate(request.getTravelDate());
         schedule.setDepartureTime(request.getDepartureTime());
         schedule.setArrivalTime(request.getArrivalTime());
-        schedule.setBaseFare(request.getBaseFare());
+        schedule.setBaseFare(FarePolicy.fareFor(route, bus));
         schedule.setActive(true);
 
         return tripScheduleRepository.save(schedule);
@@ -354,6 +359,13 @@ public class AdminService {
     private void validateScheduleTiming(java.time.LocalTime departureTime, java.time.LocalTime arrivalTime) {
         if (!arrivalTime.isAfter(departureTime)) {
             throw new BadRequestException("Arrival time must be after departure time");
+        }
+    }
+
+    private void refreshScheduleFaresForRoute(Route route) {
+        for (TripSchedule schedule : tripScheduleRepository.findByRouteIdAndActiveTrue(route.getId())) {
+            schedule.setBaseFare(FarePolicy.fareFor(route, schedule.getBus()));
+            tripScheduleRepository.save(schedule);
         }
     }
 
