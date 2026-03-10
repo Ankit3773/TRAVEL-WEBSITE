@@ -49,6 +49,23 @@ public class Booking {
     @Column(nullable = false, length = 20)
     private PaymentMode paymentMode;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", length = 20)
+    private PaymentStatus paymentStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_gateway", length = 20)
+    private PaymentGateway paymentGateway;
+
+    @Column(name = "payment_session_id", length = 100)
+    private String paymentSessionId;
+
+    @Column(name = "payment_reference", length = 120)
+    private String paymentReference;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 

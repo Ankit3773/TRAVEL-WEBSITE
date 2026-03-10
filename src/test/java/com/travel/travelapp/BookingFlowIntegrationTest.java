@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.travelapp.entity.BookingStatus;
 import com.travel.travelapp.entity.Bus;
 import com.travel.travelapp.entity.BusType;
+import com.travel.travelapp.entity.PaymentGateway;
 import com.travel.travelapp.entity.PaymentMode;
+import com.travel.travelapp.entity.PaymentStatus;
 import com.travel.travelapp.entity.Route;
 import com.travel.travelapp.entity.Seat;
 import com.travel.travelapp.entity.TripSchedule;
@@ -169,7 +171,8 @@ class BookingFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(bookingRequest(5))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.seatNumber").value(5))
-                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()));
+                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()));
 
         mockMvc.perform(post("/api/bookings")
                         .header("Authorization", "Bearer " + customerToken)
@@ -196,6 +199,7 @@ class BookingFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(payload)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()))
                 .andExpect(jsonPath("$.seatNumbers[0]").value(2))
                 .andExpect(jsonPath("$.seatNumbers[1]").value(3))
                 .andExpect(jsonPath("$.seatNumbers[2]").value(4))
@@ -230,6 +234,65 @@ class BookingFlowIntegrationTest {
     }
 
     @Test
+    void onlineDirectBookingShouldRequireCheckoutFlow() throws Exception {
+        String customerToken = registerCustomerAndGetToken("online-direct-" + UUID.randomUUID() + "@example.com");
+
+        mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(16, PaymentMode.ONLINE))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ONLINE payments must use seat lock and payment checkout"));
+    }
+
+    @Test
+    void onlinePaymentFlowShouldMarkBookingPaidAfterVerification() throws Exception {
+        String customerToken = registerCustomerAndGetToken("online-flow-" + UUID.randomUUID() + "@example.com");
+
+        String lockResponse = mockMvc.perform(post("/api/bookings/locks")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(18, PaymentMode.ONLINE))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.LOCKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()))
+                .andExpect(jsonPath("$.paymentGateway").value(PaymentGateway.MOCK.name()))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long bookingId = objectMapper.readTree(lockResponse).get("bookingId").asLong();
+
+        String checkoutResponse = mockMvc.perform(post("/api/bookings/locks/{bookingId}/payments/checkout", bookingId)
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()))
+                .andExpect(jsonPath("$.paymentGateway").value(PaymentGateway.MOCK.name()))
+                .andExpect(jsonPath("$.paymentSessionId").exists())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String paymentSessionId = objectMapper.readTree(checkoutResponse).get("paymentSessionId").asText();
+
+        Map<String, Object> verifyPayload = new HashMap<>();
+        verifyPayload.put("paymentSessionId", paymentSessionId);
+        verifyPayload.put("gatewayPaymentReference", "mock-payment-123");
+
+        mockMvc.perform(post("/api/bookings/locks/{bookingId}/payments/verify", bookingId)
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(verifyPayload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PAID.name()))
+                .andExpect(jsonPath("$.paymentGateway").value(PaymentGateway.MOCK.name()))
+                .andExpect(jsonPath("$.paymentReference").value("mock-payment-123"));
+
+        mockMvc.perform(get("/api/schedules/{scheduleId}/seats", tripScheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookedSeats[0]").value(18));
+    }
+
+    @Test
     void seatLockShouldBlockOtherUsersUntilConfirmed() throws Exception {
         String firstUserToken = registerCustomerAndGetToken("lock-a-" + UUID.randomUUID() + "@example.com");
         String secondUserToken = registerCustomerAndGetToken("lock-b-" + UUID.randomUUID() + "@example.com");
@@ -240,6 +303,7 @@ class BookingFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(bookingRequest(12))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.LOCKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()))
                 .andExpect(jsonPath("$.seatNumber").value(12))
                 .andReturn()
                 .getResponse()
@@ -257,6 +321,7 @@ class BookingFlowIntegrationTest {
                         .header("Authorization", "Bearer " + firstUserToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingStatus").value(BookingStatus.BOOKED.name()))
+                .andExpect(jsonPath("$.paymentStatus").value(PaymentStatus.PENDING.name()))
                 .andExpect(jsonPath("$.seatNumber").value(12));
     }
 
@@ -559,12 +624,16 @@ class BookingFlowIntegrationTest {
     }
 
     private Map<String, Object> bookingRequest(int seatNumber) {
+        return bookingRequest(seatNumber, PaymentMode.PAY_ON_BOARD);
+    }
+
+    private Map<String, Object> bookingRequest(int seatNumber, PaymentMode paymentMode) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("tripScheduleId", tripScheduleId);
         payload.put("seatNumber", seatNumber);
         payload.put("passengerName", "Ankit Kumar");
         payload.put("passengerPhone", "9876543210");
-        payload.put("paymentMode", PaymentMode.PAY_ON_BOARD.name());
+        payload.put("paymentMode", paymentMode.name());
         return payload;
     }
 

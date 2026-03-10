@@ -1,6 +1,6 @@
- # NARAYAN TRAVELS - Project Tracker
+# NARAYAN TRAVELS - Project Tracker
 
-Last updated: 2026-03-06 (Stage 1 to Stage 4 completed)
+Last updated: 2026-03-10 (Stage 1 to Stage 5 completed)
 
 ## 1) Project Vision
 Build an online bus booking system for Bihar routes with:
@@ -17,9 +17,9 @@ Build an online bus booking system for Bihar routes with:
   - Frontend: Static HTML/CSS/JS served by backend (not React yet)
 - Local status: Running on `http://localhost:8080`
 - Checklist status (48-step plan):
-  - Done: `25`
-  - Partial: `12`
-  - Pending: `11`
+  - Done: `28`
+  - Partial: `11`
+  - Pending: `9`
   - Verification-only: `0`
 
 ## 3) Completed Work
@@ -90,9 +90,9 @@ Build an online bus booking system for Bihar routes with:
 - Request correlation ID logging (`X-Request-Id`) implemented
 
 ### 3.9 Test Status
-- Latest run: `./mvnw -q test` (2026-03-06)
+- Latest run: `./mvnw -q test` (2026-03-10)
 - Result: pass
-  - `BookingFlowIntegrationTest`: 14/14 passed
+  - `BookingFlowIntegrationTest`: 16/16 passed
   - `TravelappApplicationTests`: 1/1 passed
 
 ### 3.10 Stage 1 Completion (2026-03-06)
@@ -166,6 +166,36 @@ Build an online bus booking system for Bihar routes with:
   - lock conflict + confirm flow
   - concurrent same-seat protection retained
 
+### 3.14 Stage 5 Completion (2026-03-10)
+- Added payment lifecycle fields to booking model:
+  - `paymentStatus`
+  - `paymentGateway`
+  - `paymentSessionId`
+  - `paymentReference`
+  - `paidAt`
+- Implemented payment states:
+  - `PENDING`
+  - `PAID`
+- Added gateway abstraction:
+  - `MOCK`
+  - `RAZORPAY`
+  - `STRIPE`
+- Implemented Stage 5 ONLINE booking flow:
+  - `POST /api/bookings/locks`
+  - `POST /api/bookings/locks/{bookingId}/payments/checkout`
+  - `POST /api/bookings/locks/{bookingId}/payments/verify`
+- Enforced booking rule:
+  - direct `ONLINE` booking creation is rejected
+  - ONLINE booking must move through lock -> checkout -> verify
+- Updated DB schema migration for payment columns, constraints, and payment session uniqueness
+- Updated frontend booking UI to handle:
+  - payment session creation
+  - mock payment completion
+  - payment status display in booking history/admin views
+- Added Stage 5 integration tests:
+  - ONLINE direct booking rejection
+  - full ONLINE payment success path to `BOOKED` + `PAID`
+
 ## 4) Stage-wise Checklist Audit (What Is Left)
 
 ### Stage 1 - Project Setup
@@ -192,10 +222,12 @@ Build an online bus booking system for Bihar routes with:
   - Multi-seat booking enabled through `BookingSeat` mapping
 
 ### Stage 5 - Payment System
-- Left: 3 steps (`25, 26, 27`)
+- Left: 0 steps
 - Notes:
-  - No Razorpay/Stripe integration yet
-  - No `PAID/PENDING` payment status lifecycle yet
+  - Stage 5 baseline is complete for local delivery
+  - Payment lifecycle (`PENDING` -> `PAID`) is implemented
+  - Gateway contract is implemented with `MOCK` as the active local provider
+  - Live Razorpay/Stripe credential onboarding can be added later without changing the booking contract
 
 ### Stage 6 - Frontend Development
 - Left: 4 steps (`28, 29, 32, 34`)
@@ -237,6 +269,8 @@ Build an online bus booking system for Bihar routes with:
 ### Booking (User/Admin)
 - `POST /api/bookings`
 - `POST /api/bookings/locks`
+- `POST /api/bookings/locks/{bookingId}/payments/checkout`
+- `POST /api/bookings/locks/{bookingId}/payments/verify`
 - `POST /api/bookings/locks/{bookingId}/confirm`
 - `DELETE /api/bookings/locks/{bookingId}`
 - `GET /api/bookings/{bookingId}`

@@ -4,12 +4,17 @@ import com.travel.travelapp.dto.BookingHistoryResponse;
 import com.travel.travelapp.dto.BookingPageResponse;
 import com.travel.travelapp.dto.BookingResponse;
 import com.travel.travelapp.dto.CreateBookingRequest;
+import com.travel.travelapp.dto.PaymentCheckoutResponse;
 import com.travel.travelapp.dto.SeatAvailabilityResponse;
+import com.travel.travelapp.dto.VerifyPaymentRequest;
 import com.travel.travelapp.entity.AppUser;
 import com.travel.travelapp.entity.Booking;
 import com.travel.travelapp.entity.BookingSeat;
 import com.travel.travelapp.entity.BookingStatus;
+import com.travel.travelapp.entity.PaymentGateway;
 import com.travel.travelapp.entity.Seat;
+import com.travel.travelapp.entity.PaymentMode;
+import com.travel.travelapp.entity.PaymentStatus;
 import com.travel.travelapp.entity.TripSchedule;
 import com.travel.travelapp.exception.BadRequestException;
 import com.travel.travelapp.exception.ResourceNotFoundException;
@@ -29,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -42,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookingService {
 
     private static final String SEAT_CONFLICT_MESSAGE = "Seat already booked for this schedule";
+    private static final String ONLINE_PAYMENT_LOCK_MESSAGE = "ONLINE payments must use seat lock and payment checkout";
     private static final List<BookingStatus> ACTIVE_SEAT_BLOCKING_STATUSES = List.of(
             BookingStatus.BOOKED, BookingStatus.CONFIRMED, BookingStatus.LOCKED);
 
@@ -53,6 +60,9 @@ public class BookingService {
 
     @Value("${app.booking.lock-minutes:5}")
     private long seatLockMinutes;
+
+    @Value("${app.payment.gateway:MOCK}")
+    private PaymentGateway configuredPaymentGateway;
 
     @Transactional
     public SeatAvailabilityResponse getSeatAvailability(Long tripScheduleId) {
@@ -121,6 +131,11 @@ public class BookingService {
         lockBooking.setPassengerName(request.getPassengerName().trim());
         lockBooking.setPassengerPhone(request.getPassengerPhone().trim());
         lockBooking.setPaymentMode(request.getPaymentMode());
+        lockBooking.setPaymentStatus(PaymentStatus.PENDING);
+        lockBooking.setPaymentGateway(request.getPaymentMode() == PaymentMode.ONLINE ? configuredPaymentGateway : null);
+        lockBooking.setPaymentSessionId(null);
+        lockBooking.setPaymentReference(null);
+        lockBooking.setPaidAt(null);
         lockBooking.setAmount(calculateAmount(schedule.getBaseFare(), requestedSeatNumbers.size()));
         lockBooking.setBookedAt(now);
         lockBooking.setBookingStatus(BookingStatus.LOCKED);
@@ -154,14 +169,19 @@ public class BookingService {
         tripScheduleRepository.findByIdForUpdate(booking.getTripSchedule().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule not found"));
 
-        booking.setBookingStatus(BookingStatus.BOOKED);
-        booking.setLockExpiresAt(null);
-        Booking saved = bookingRepository.save(booking);
-        return toBookingResponse(saved);
+        if (booking.getPaymentMode() == PaymentMode.ONLINE && booking.getPaymentStatus() != PaymentStatus.PAID) {
+            throw new BadRequestException("Online payment is still pending for this seat lock");
+        }
+
+        return finalizeLockedBooking(booking);
     }
 
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest request, String userEmail) {
+        if (request.getPaymentMode() == PaymentMode.ONLINE) {
+            throw new BadRequestException(ONLINE_PAYMENT_LOCK_MESSAGE);
+        }
+
         LocalDateTime now = LocalDateTime.now();
         purgeExpiredLocks(now);
 
@@ -181,6 +201,11 @@ public class BookingService {
         booking.setPassengerName(request.getPassengerName().trim());
         booking.setPassengerPhone(request.getPassengerPhone().trim());
         booking.setPaymentMode(request.getPaymentMode());
+        booking.setPaymentStatus(PaymentStatus.PENDING);
+        booking.setPaymentGateway(null);
+        booking.setPaymentSessionId(null);
+        booking.setPaymentReference(null);
+        booking.setPaidAt(null);
         booking.setAmount(calculateAmount(schedule.getBaseFare(), requestedSeatNumbers.size()));
         booking.setBookedAt(now);
         booking.setBookingStatus(BookingStatus.BOOKED);
@@ -189,6 +214,59 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
         return toBookingResponse(saved);
+    }
+
+    @Transactional
+    public PaymentCheckoutResponse createPaymentCheckout(Long bookingId, String userEmail, boolean isAdmin) {
+        LocalDateTime now = LocalDateTime.now();
+        purgeExpiredLocks(now);
+
+        Booking booking = loadAccessibleBooking(bookingId, userEmail, isAdmin);
+        ensureLockIsActiveForPayment(booking, now);
+        if (booking.getPaymentMode() != PaymentMode.ONLINE) {
+            throw new BadRequestException("Checkout is only available for ONLINE payments");
+        }
+
+        booking.setPaymentStatus(PaymentStatus.PENDING);
+        booking.setPaymentGateway(booking.getPaymentGateway() == null ? configuredPaymentGateway : booking.getPaymentGateway());
+        if (booking.getPaymentSessionId() == null || booking.getPaymentSessionId().isBlank()) {
+            booking.setPaymentSessionId("pay_" + UUID.randomUUID().toString().replace("-", ""));
+        }
+
+        Booking saved = bookingRepository.save(booking);
+        return PaymentCheckoutResponse.builder()
+                .bookingId(saved.getId())
+                .paymentGateway(saved.getPaymentGateway())
+                .paymentStatus(saved.getPaymentStatus())
+                .paymentSessionId(saved.getPaymentSessionId())
+                .amount(saved.getAmount())
+                .payableUntil(saved.getLockExpiresAt())
+                .build();
+    }
+
+    @Transactional
+    public BookingResponse verifyPayment(
+            Long bookingId,
+            VerifyPaymentRequest request,
+            String userEmail,
+            boolean isAdmin) {
+        LocalDateTime now = LocalDateTime.now();
+        purgeExpiredLocks(now);
+
+        Booking booking = loadAccessibleBooking(bookingId, userEmail, isAdmin);
+        ensureLockIsActiveForPayment(booking, now);
+        if (booking.getPaymentMode() != PaymentMode.ONLINE) {
+            throw new BadRequestException("Only ONLINE bookings can be verified through payment checkout");
+        }
+        if (booking.getPaymentSessionId() == null || !booking.getPaymentSessionId().equals(request.getPaymentSessionId())) {
+            throw new BadRequestException("Invalid payment session for this booking lock");
+        }
+
+        booking.setPaymentStatus(PaymentStatus.PAID);
+        booking.setPaymentGateway(booking.getPaymentGateway() == null ? configuredPaymentGateway : booking.getPaymentGateway());
+        booking.setPaymentReference(request.getGatewayPaymentReference().trim());
+        booking.setPaidAt(now);
+        return finalizeLockedBooking(booking);
     }
 
     @Transactional
@@ -231,13 +309,8 @@ public class BookingService {
         LocalDateTime now = LocalDateTime.now();
         purgeExpiredLocks(now);
 
-        Booking booking = bookingRepository.findDetailedById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        Booking booking = loadAccessibleBooking(bookingId, userEmail, isAdmin);
         AppUser cancelledBy = requireUser(userEmail);
-
-        if (!isAdmin && !booking.getBookedByUser().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new AccessDeniedException("You are not allowed to cancel this booking");
-        }
 
         if (booking.getBookingStatus() == BookingStatus.LOCKED) {
             releaseLockInternal(booking);
@@ -322,6 +395,25 @@ public class BookingService {
         bookingSeatRepository.deleteByBookingIdIn(expiredLockIds);
         bookingRepository.deleteAllByIdInBatch(expiredLockIds);
         return expiredLockIds.size();
+    }
+
+    private Booking loadAccessibleBooking(Long bookingId, String userEmail, boolean isAdmin) {
+        Booking booking = bookingRepository.findDetailedById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (!isAdmin && !booking.getBookedByUser().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new AccessDeniedException("You are not allowed to access this booking");
+        }
+        return booking;
+    }
+
+    private void ensureLockIsActiveForPayment(Booking booking, LocalDateTime now) {
+        if (booking.getBookingStatus() != BookingStatus.LOCKED) {
+            throw new BadRequestException("Booking is not in locked state");
+        }
+        if (booking.getLockExpiresAt() == null || !booking.getLockExpiresAt().isAfter(now)) {
+            releaseLockInternal(booking);
+            throw new BadRequestException("Seat lock expired. Please lock seats again");
+        }
     }
 
     private AppUser requireUser(String userEmail) {
@@ -448,6 +540,13 @@ public class BookingService {
         return baseFare.multiply(BigDecimal.valueOf(seatsCount));
     }
 
+    private BookingResponse finalizeLockedBooking(Booking booking) {
+        booking.setBookingStatus(BookingStatus.BOOKED);
+        booking.setLockExpiresAt(null);
+        Booking saved = bookingRepository.save(booking);
+        return toBookingResponse(saved);
+    }
+
     private void releaseLockInternal(Booking booking) {
         bookingSeatRepository.deleteByBookingId(booking.getId());
         bookingRepository.deleteById(booking.getId());
@@ -475,6 +574,11 @@ public class BookingService {
                 .passengerName(booking.getPassengerName())
                 .passengerPhone(booking.getPassengerPhone())
                 .paymentMode(booking.getPaymentMode())
+                .paymentStatus(booking.getPaymentStatus())
+                .paymentGateway(booking.getPaymentGateway())
+                .paymentSessionId(booking.getPaymentSessionId())
+                .paymentReference(booking.getPaymentReference())
+                .paidAt(booking.getPaidAt())
                 .amount(booking.getAmount())
                 .bookedAt(booking.getBookedAt())
                 .bookingStatus(normalizeResponseStatus(booking.getBookingStatus()))
@@ -498,6 +602,10 @@ public class BookingService {
                 .passengerName(booking.getPassengerName())
                 .passengerPhone(booking.getPassengerPhone())
                 .paymentMode(booking.getPaymentMode())
+                .paymentStatus(booking.getPaymentStatus())
+                .paymentGateway(booking.getPaymentGateway())
+                .paymentReference(booking.getPaymentReference())
+                .paidAt(booking.getPaidAt())
                 .amount(booking.getAmount())
                 .bookedAt(booking.getBookedAt())
                 .bookingStatus(normalizeResponseStatus(booking.getBookingStatus()))

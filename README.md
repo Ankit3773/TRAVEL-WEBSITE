@@ -30,6 +30,7 @@ export DB_PASSWORD='<supabase_password>'
 export JWT_SECRET='<long_random_secret_or_base64_key>'
 export APP_ADMIN_EMAIL='admin@narayantravels.com'
 export APP_ADMIN_PASSWORD='ChangeMe123!'
+export APP_PAYMENT_GATEWAY='MOCK'
 ```
 
 Start app:
@@ -96,6 +97,8 @@ All responses include `X-Request-Id` header. Provide your own `X-Request-Id` in 
 ### Booking APIs
 - `POST /api/bookings`
 - `POST /api/bookings/locks` (temporary seat lock)
+- `POST /api/bookings/locks/{bookingId}/payments/checkout` (create payment session for locked ONLINE booking)
+- `POST /api/bookings/locks/{bookingId}/payments/verify` (mark payment paid and finalize booking)
 - `POST /api/bookings/locks/{bookingId}/confirm` (confirm locked seats)
 - `DELETE /api/bookings/locks/{bookingId}` (release lock)
 - `GET /api/my-bookings` (customer/admin own bookings)
@@ -106,6 +109,16 @@ All responses include `X-Request-Id` header. Provide your own `X-Request-Id` in 
 `/api/admin/**` requires `ADMIN` JWT.
 `/api/bookings/**` requires `ADMIN` or `CUSTOMER` JWT.
 Legacy `status=CONFIRMED` filters are normalized to `BOOKED` for backward compatibility.
+Payment lifecycle uses:
+- `paymentStatus`: `PENDING`, `PAID`
+- `paymentGateway`: `MOCK`, `RAZORPAY`, `STRIPE`
+
+For `paymentMode=ONLINE`, direct `POST /api/bookings` is rejected. The supported flow is:
+1. `POST /api/bookings/locks`
+2. `POST /api/bookings/locks/{bookingId}/payments/checkout`
+3. `POST /api/bookings/locks/{bookingId}/payments/verify`
+
+Default local gateway is `MOCK`. Override it with `APP_PAYMENT_GATEWAY`.
 
 ## Sample Payloads
 
@@ -156,6 +169,33 @@ Book seats (multi-seat):
 
 Single-seat booking is still supported using `seatNumber`.
 
+Lock seats for online payment:
+
+```json
+{
+  "tripScheduleId": 1,
+  "seatNumbers": [7, 8],
+  "passengerName": "Ankit Kumar",
+  "passengerPhone": "9876543210",
+  "paymentMode": "ONLINE"
+}
+```
+
+Checkout locked online booking:
+
+```json
+{}
+```
+
+Verify payment and finalize booking:
+
+```json
+{
+  "paymentSessionId": "pay_1234567890",
+  "gatewayPaymentReference": "mock-payment-123"
+}
+```
+
 Register customer:
 
 ```json
@@ -199,3 +239,9 @@ Reset password:
 - Background cleanup of expired locks (`APP_BOOKING_LOCK_CLEANUP_MS`, default `60000`)
 - Conflict response (`409`) if any requested seat is already locked or booked
 - Seat release on lock expiry, lock release endpoint, or booking cancellation
+
+## Stage 5 Payment Notes
+- `PAY_ON_BOARD` bookings are created directly with `paymentStatus=PENDING`
+- `ONLINE` bookings must stay in `LOCKED` status until payment verification succeeds
+- Payment verification transitions booking state to `BOOKED` and payment state to `PAID`
+- Local development uses a mock checkout/verify cycle so the complete booking path can be tested without external gateway keys

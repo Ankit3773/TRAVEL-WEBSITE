@@ -13,7 +13,9 @@ public class SeatLockCleanupConfig {
 
     private final BookingService bookingService;
 
-    @Scheduled(fixedDelayString = "${app.booking.lock-cleanup-ms:60000}")
+    @Scheduled(
+            initialDelayString = "${app.booking.lock-cleanup-initial-delay-ms:30000}",
+            fixedDelayString = "${app.booking.lock-cleanup-ms:60000}")
     public void cleanupExpiredLocks() {
         int releasedLocks = bookingService.cleanupExpiredLocks();
         if (releasedLocks > 0) {

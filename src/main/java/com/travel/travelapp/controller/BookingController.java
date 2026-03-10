@@ -4,7 +4,9 @@ import com.travel.travelapp.dto.BookingHistoryResponse;
 import com.travel.travelapp.dto.BookingPageResponse;
 import com.travel.travelapp.dto.BookingResponse;
 import com.travel.travelapp.dto.CreateBookingRequest;
+import com.travel.travelapp.dto.PaymentCheckoutResponse;
 import com.travel.travelapp.dto.SeatAvailabilityResponse;
+import com.travel.travelapp.dto.VerifyPaymentRequest;
 import com.travel.travelapp.entity.BookingStatus;
 import com.travel.travelapp.service.BookingService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -55,6 +57,21 @@ public class BookingController {
     @SecurityRequirement(name = "bearerAuth")
     public BookingResponse confirmLock(@PathVariable Long bookingId, Authentication authentication) {
         return bookingService.confirmSeatLock(bookingId, authentication.getName(), isAdmin(authentication));
+    }
+
+    @PostMapping("/bookings/locks/{bookingId}/payments/checkout")
+    @SecurityRequirement(name = "bearerAuth")
+    public PaymentCheckoutResponse startPaymentCheckout(@PathVariable Long bookingId, Authentication authentication) {
+        return bookingService.createPaymentCheckout(bookingId, authentication.getName(), isAdmin(authentication));
+    }
+
+    @PostMapping("/bookings/locks/{bookingId}/payments/verify")
+    @SecurityRequirement(name = "bearerAuth")
+    public BookingResponse verifyPayment(
+            @PathVariable Long bookingId,
+            @Valid @RequestBody VerifyPaymentRequest request,
+            Authentication authentication) {
+        return bookingService.verifyPayment(bookingId, request, authentication.getName(), isAdmin(authentication));
     }
 
     @GetMapping("/my-bookings")

@@ -225,6 +225,10 @@ function normalizeBookingStatus(status) {
   return status === 'CONFIRMED' ? 'BOOKED' : status;
 }
 
+function formatPaymentStatus(booking) {
+  return booking.paymentStatus || 'PENDING';
+}
+
 function renderMyBookings(items) {
   if (!items || !items.length) {
     myBookingsEl.innerHTML = '<div class="item muted">No bookings yet.</div>';
@@ -233,7 +237,7 @@ function renderMyBookings(items) {
 
   myBookingsEl.innerHTML = items.map(b => `
     <div class="item">
-      <div class="row"><strong>${b.source} -> ${b.destination}</strong><span>${normalizeBookingStatus(b.bookingStatus)}</span></div>
+      <div class="row"><strong>${b.source} -> ${b.destination}</strong><span>${normalizeBookingStatus(b.bookingStatus)} | ${formatPaymentStatus(b)}</span></div>
       <div class="row muted"><span>Seat(s) ${formatSeatNumbers(b)} | ${b.travelDate} ${b.departureTime}</span><span>Rs ${b.amount}</span></div>
       <div class="row">
         <span class="muted">Booking #${b.bookingId}</span>
@@ -316,7 +320,7 @@ function renderAdminBookings(items) {
 
   adminBookingsEl.innerHTML = items.map(b => `
     <div class="item">
-      <div class="row"><strong>${b.source} -> ${b.destination}</strong><span>${normalizeBookingStatus(b.bookingStatus)}</span></div>
+      <div class="row"><strong>${b.source} -> ${b.destination}</strong><span>${normalizeBookingStatus(b.bookingStatus)} | ${formatPaymentStatus(b)}</span></div>
       <div class="row muted"><span>#${b.bookingId} | Seat(s) ${formatSeatNumbers(b)}</span><span>${b.bookedByEmail}</span></div>
       <div class="row muted"><span>${b.travelDate} ${b.departureTime}</span><span>Rs ${b.amount}</span></div>
     </div>
@@ -495,16 +499,69 @@ document.getElementById('admin-schedule-form').addEventListener('submit', async 
 bookingForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!selectedScheduleId || !selectedSeat) return;
+  const paymentMode = document.getElementById('book-payment').value;
+  const payload = {
+    tripScheduleId: selectedScheduleId,
+    seatNumber: selectedSeat,
+    passengerName: document.getElementById('book-name').value.trim(),
+    passengerPhone: document.getElementById('book-phone').value.trim(),
+    paymentMode
+  };
+
   try {
-    const payload = {
-      tripScheduleId: selectedScheduleId,
-      seatNumber: selectedSeat,
-      passengerName: document.getElementById('book-name').value.trim(),
-      passengerPhone: document.getElementById('book-phone').value.trim(),
-      paymentMode: document.getElementById('book-payment').value
-    };
+    if (paymentMode === 'ONLINE') {
+      let lockedBooking = null;
+      try {
+        lockedBooking = await api('/api/bookings/locks', { method: 'POST', body: JSON.stringify(payload), auth: true });
+        const checkout = await api(`/api/bookings/locks/${lockedBooking.bookingId}/payments/checkout`, {
+          method: 'POST',
+          auth: true
+        });
+
+        bookingForm.classList.add('hidden');
+        await loadSeats(selectedScheduleId);
+        bookingStatus.innerHTML =
+          `Online payment session ready for Rs ${checkout.amount}. <button id="complete-payment-btn" type="button">Complete Payment</button>`;
+        bookingStatus.className = 'summary status-ok';
+
+        const completePaymentBtn = document.getElementById('complete-payment-btn');
+        completePaymentBtn.addEventListener('click', async () => {
+          completePaymentBtn.disabled = true;
+          try {
+            await api(`/api/bookings/locks/${lockedBooking.bookingId}/payments/verify`, {
+              method: 'POST',
+              body: JSON.stringify({
+                paymentSessionId: checkout.paymentSessionId,
+                gatewayPaymentReference: `mock-${Date.now()}`
+              }),
+              auth: true
+            });
+            bookingStatus.textContent = 'Online payment completed. Booking confirmed.';
+            bookingStatus.className = 'summary status-ok';
+            bookingForm.reset();
+            await loadSeats(selectedScheduleId);
+            await loadMyBookings();
+            await loadAdminMetrics();
+            await loadAdminBookings();
+          } catch (err) {
+            completePaymentBtn.disabled = false;
+            bookingStatus.textContent = err.message;
+            bookingStatus.className = 'summary status-err';
+          }
+        });
+        return;
+      } catch (err) {
+        if (lockedBooking?.bookingId) {
+          try {
+            await api(`/api/bookings/locks/${lockedBooking.bookingId}`, { method: 'DELETE', auth: true });
+          } catch {}
+        }
+        throw err;
+      }
+    }
+
     await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload), auth: true });
-    bookingStatus.textContent = 'Booking successful.';
+    bookingStatus.textContent = 'Booking successful. Payment status: PENDING.';
     bookingStatus.className = 'summary status-ok';
     bookingForm.reset();
     bookingForm.classList.add('hidden');
