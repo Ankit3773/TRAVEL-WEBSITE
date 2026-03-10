@@ -1,5 +1,7 @@
 const STEP_ORDER = ['search', 'buses', 'seats', 'payment', 'confirmation'];
 const POLL_INTERVAL_MS = 10000;
+const APP_CONFIG = window.NARAYAN_TRAVELS_CONFIG || {};
+const API_BASE_URL = normalizeBaseUrl(APP_CONFIG.apiBaseUrl || '');
 
 const elements = {
   routes: document.getElementById('route-list'),
@@ -17,10 +19,24 @@ const elements = {
   bookingForm: document.getElementById('booking-form'),
   bookingStatus: document.getElementById('booking-status'),
   myBookings: document.getElementById('my-bookings'),
+  myBookingsSummary: document.getElementById('my-bookings-summary'),
+  myBookingsPagination: document.getElementById('my-bookings-pagination'),
+  myBookingsStatus: document.getElementById('my-bookings-status'),
+  myBookingsRefresh: document.getElementById('my-bookings-refresh'),
   adminPanel: document.getElementById('admin-panel'),
   adminStatus: document.getElementById('admin-status'),
   adminBookings: document.getElementById('admin-bookings'),
+  adminBookingsSummary: document.getElementById('admin-bookings-summary'),
+  adminBookingsPagination: document.getElementById('admin-bookings-pagination'),
+  adminBookingsStatus: document.getElementById('admin-bookings-status'),
+  adminBookingsRefresh: document.getElementById('admin-bookings-refresh'),
   adminMetrics: document.getElementById('admin-metrics'),
+  adminTrendRange: document.getElementById('admin-trend-range'),
+  adminTrendSummary: document.getElementById('admin-trend-summary'),
+  adminTrendChart: document.getElementById('admin-trend-chart'),
+  adminTrendsRefresh: document.getElementById('admin-trends-refresh'),
+  adminMonitoring: document.getElementById('admin-monitoring'),
+  adminMonitorRefresh: document.getElementById('admin-monitor-refresh'),
   travelDate: document.getElementById('travel-date'),
   journeyDateText: document.getElementById('journey-date-text'),
   journeyDayHint: document.getElementById('journey-day-hint'),
@@ -57,8 +73,31 @@ const state = {
   pendingTraveller: null,
   paymentDraft: null,
   confirmation: null,
-  seatPoller: null
+  seatPoller: null,
+  myBookingsPage: {
+    status: '',
+    page: 0,
+    size: 5
+  },
+  adminBookingsPage: {
+    status: '',
+    page: 0,
+    size: 6
+  },
+  adminTrendRangeDays: 7
 };
+
+function normalizeBaseUrl(value) {
+  if (!value) return '';
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function resolveApiUrl(path) {
+  if (!path) return path;
+  if (/^https?:\/\//i.test(path)) return path;
+  if (!path.startsWith('/')) return path;
+  return `${API_BASE_URL}${path}`;
+}
 
 function toIsoDate(date) {
   const year = date.getFullYear();
@@ -97,6 +136,19 @@ function formatTime(timeValue) {
 function formatAmount(amount) {
   if (amount == null) return '-';
   return `Rs ${Number(amount).toFixed(0)}`;
+}
+
+function formatDateTime(dateTimeValue) {
+  if (!dateTimeValue) return '-';
+  const date = new Date(dateTimeValue);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function journeyHint(isoDate) {
@@ -182,12 +234,16 @@ function formatPaymentStatus(booking) {
   return booking.paymentStatus || 'PENDING';
 }
 
+function statusFilterLabel(status) {
+  return status ? normalizeBookingStatus(status) : 'ALL';
+}
+
 async function api(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (options.body) headers['Content-Type'] = 'application/json';
   if (options.auth && getToken()) headers.Authorization = `Bearer ${getToken()}`;
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(resolveApiUrl(url), { ...options, headers });
   const isJson = res.headers.get('content-type')?.includes('application/json');
   const body = isJson ? await res.json() : null;
   if (!res.ok) throw new Error(body?.error || 'Request failed');
@@ -534,18 +590,79 @@ function renderConfirmation(booking) {
   `;
 }
 
-function renderMyBookings(items) {
-  if (!items || !items.length) {
-    elements.myBookings.innerHTML = '<div class="item muted">No bookings yet.</div>';
+function renderPagination(container, pageData, onPageChange) {
+  if (!container || !pageData || pageData.totalPages <= 1) {
+    if (container) {
+      container.innerHTML = '';
+      container.classList.add('hidden');
+    }
     return;
   }
 
+  const current = pageData.page || 0;
+  const totalPages = pageData.totalPages || 0;
+  const start = Math.max(0, current - 1);
+  const end = Math.min(totalPages - 1, current + 1);
+  const pageButtons = [];
+
+  for (let page = start; page <= end; page += 1) {
+    pageButtons.push(`
+      <button type="button" class="page-btn${page === current ? ' active' : ''}" data-page="${page}">
+        ${page + 1}
+      </button>
+    `);
+  }
+
+  container.innerHTML = `
+    <div class="pagination-copy">Page ${current + 1} of ${totalPages}</div>
+    <div class="pagination-actions">
+      <button type="button" class="page-btn" data-page="${current - 1}" ${pageData.first ? 'disabled' : ''}>Prev</button>
+      ${pageButtons.join('')}
+      <button type="button" class="page-btn" data-page="${current + 1}" ${pageData.last ? 'disabled' : ''}>Next</button>
+    </div>
+  `;
+  container.classList.remove('hidden');
+  container.querySelectorAll('[data-page]').forEach(button => {
+    button.addEventListener('click', () => {
+      const nextPage = Number(button.dataset.page);
+      if (Number.isNaN(nextPage) || nextPage < 0 || nextPage >= totalPages || nextPage === current) return;
+      onPageChange(nextPage);
+    });
+  });
+}
+
+function renderMyBookings(pageData) {
+  const items = pageData?.items || [];
+  const statusLabel = statusFilterLabel(state.myBookingsPage.status);
+  const startIndex = items.length ? state.myBookingsPage.page * state.myBookingsPage.size + 1 : 0;
+  const endIndex = items.length ? startIndex + items.length - 1 : 0;
+
+  if (!items.length) {
+    elements.myBookingsSummary.textContent = `No bookings found for ${statusLabel}.`;
+    elements.myBookings.innerHTML = '<div class="item muted">No booking history available for the selected filter.</div>';
+    renderPagination(elements.myBookingsPagination, null, () => {});
+    return;
+  }
+
+  elements.myBookingsSummary.textContent =
+    `Showing ${startIndex}-${endIndex} of ${pageData.totalElements} booking(s) | Filter: ${statusLabel}`;
+
   elements.myBookings.innerHTML = items.map(booking => `
     <div class="item">
-      <div class="row"><strong>${booking.source} -> ${booking.destination}</strong><span>${normalizeBookingStatus(booking.bookingStatus)} | ${formatPaymentStatus(booking)}</span></div>
-      <div class="row muted"><span>Seat(s) ${formatSeatNumbers(booking)} | ${formatDisplayDate(booking.travelDate)} ${formatTime(booking.departureTime)}</span><span>${formatAmount(booking.amount)}</span></div>
       <div class="row">
-        <span class="muted">Booking #${booking.bookingId}</span>
+        <strong>${booking.source} -> ${booking.destination}</strong>
+        <span class="info-pill">${normalizeBookingStatus(booking.bookingStatus)} | ${formatPaymentStatus(booking)}</span>
+      </div>
+      <div class="row muted">
+        <span>${booking.busNumber} | Seat(s) ${formatSeatNumbers(booking)} | ${formatDisplayDate(booking.travelDate)} ${formatTime(booking.departureTime)}</span>
+        <span>${formatAmount(booking.amount)}</span>
+      </div>
+      <div class="row muted">
+        <span>Booked ${formatDateTime(booking.bookedAt)}</span>
+        <span>${booking.paymentMode}${booking.paymentReference ? ` | Ref ${booking.paymentReference}` : ''}</span>
+      </div>
+      <div class="row">
+        <span class="muted">Booking #${booking.bookingId}${booking.cancelledAt ? ` | Cancelled ${formatDateTime(booking.cancelledAt)}` : ''}</span>
         ${normalizeBookingStatus(booking.bookingStatus) === 'BOOKED'
           ? `<button type="button" data-cancel="${booking.bookingId}">Cancel</button>`
           : '<span class="muted">Cancelled</span>'}
@@ -553,14 +670,21 @@ function renderMyBookings(items) {
     </div>
   `).join('');
 
+  renderPagination(elements.myBookingsPagination, pageData, nextPage => {
+    state.myBookingsPage.page = nextPage;
+    loadMyBookings();
+  });
+
   elements.myBookings.querySelectorAll('[data-cancel]').forEach(button => {
     button.addEventListener('click', async () => {
+      const bookingId = Number(button.dataset.cancel);
+      if (!window.confirm(`Cancel booking #${bookingId}? The seat will be released.`)) return;
+
       try {
-        await api(`/api/bookings/${button.dataset.cancel}`, { method: 'DELETE', auth: true });
+        await api(`/api/bookings/${bookingId}`, { method: 'DELETE', auth: true });
         await loadMyBookings();
         if (isAdmin()) {
-          await loadAdminMetrics();
-          await loadAdminBookings();
+          await loadAdminDashboard();
         }
         if (state.selectedSchedule) await loadSeats(state.selectedSchedule.id, false, true);
       } catch (err) {
@@ -570,41 +694,112 @@ function renderMyBookings(items) {
   });
 }
 
-async function loadMyBookings() {
+async function loadMyBookings(options = {}) {
   if (!getToken()) {
+    state.myBookingsPage.page = 0;
+    elements.myBookingsSummary.textContent = 'Login to see your bookings.';
     elements.myBookings.innerHTML = '<div class="item muted">Login to see your bookings.</div>';
+    renderPagination(elements.myBookingsPagination, null, () => {});
     return;
+  }
+
+  if (options.resetPage) {
+    state.myBookingsPage.page = 0;
+  }
+
+  state.myBookingsPage.status = elements.myBookingsStatus?.value || '';
+  const params = new URLSearchParams({
+    page: String(state.myBookingsPage.page),
+    size: String(state.myBookingsPage.size)
+  });
+  if (state.myBookingsPage.status) {
+    params.set('status', state.myBookingsPage.status);
   }
 
   try {
-    renderMyBookings(await api('/api/my-bookings', { auth: true }));
-  } catch {
-    elements.myBookings.innerHTML = '<div class="item muted">Could not fetch bookings.</div>';
+    const pageData = await api(`/api/my-bookings/paged?${params.toString()}`, { auth: true });
+    if (pageData.totalPages > 0 && !pageData.items.length && state.myBookingsPage.page >= pageData.totalPages) {
+      state.myBookingsPage.page = pageData.totalPages - 1;
+      return loadMyBookings();
+    }
+    renderMyBookings(pageData);
+  } catch (err) {
+    elements.myBookingsSummary.textContent = 'Could not fetch booking history.';
+    elements.myBookings.innerHTML = `<div class="item muted">${err.message}</div>`;
+    renderPagination(elements.myBookingsPagination, null, () => {});
   }
 }
 
-function renderAdminBookings(items) {
-  if (!items || !items.length) {
-    elements.adminBookings.innerHTML = '<div class="item muted">No bookings found.</div>';
+function renderAdminBookings(pageData) {
+  const items = pageData?.items || [];
+  const statusLabel = statusFilterLabel(state.adminBookingsPage.status);
+  const startIndex = items.length ? state.adminBookingsPage.page * state.adminBookingsPage.size + 1 : 0;
+  const endIndex = items.length ? startIndex + items.length - 1 : 0;
+
+  if (!items.length) {
+    elements.adminBookingsSummary.textContent = `No admin bookings found for ${statusLabel}.`;
+    elements.adminBookings.innerHTML = '<div class="item muted">No bookings matched the current admin filter.</div>';
+    renderPagination(elements.adminBookingsPagination, null, () => {});
     return;
   }
+
+  elements.adminBookingsSummary.textContent =
+    `Showing ${startIndex}-${endIndex} of ${pageData.totalElements} booking(s) | Filter: ${statusLabel}`;
 
   elements.adminBookings.innerHTML = items.map(booking => `
     <div class="item">
-      <div class="row"><strong>${booking.source} -> ${booking.destination}</strong><span>${normalizeBookingStatus(booking.bookingStatus)} | ${formatPaymentStatus(booking)}</span></div>
-      <div class="row muted"><span>#${booking.bookingId} | Seat(s) ${formatSeatNumbers(booking)}</span><span>${booking.bookedByEmail}</span></div>
-      <div class="row muted"><span>${formatDisplayDate(booking.travelDate)} ${formatTime(booking.departureTime)}</span><span>${formatAmount(booking.amount)}</span></div>
+      <div class="row">
+        <strong>${booking.source} -> ${booking.destination}</strong>
+        <span class="info-pill">${normalizeBookingStatus(booking.bookingStatus)} | ${formatPaymentStatus(booking)}</span>
+      </div>
+      <div class="row muted">
+        <span>#${booking.bookingId} | ${booking.busNumber} | Seat(s) ${formatSeatNumbers(booking)}</span>
+        <span>${booking.bookedByEmail || 'Unknown customer'}</span>
+      </div>
+      <div class="row muted">
+        <span>${formatDisplayDate(booking.travelDate)} ${formatTime(booking.departureTime)} | Booked ${formatDateTime(booking.bookedAt)}</span>
+        <span>${formatAmount(booking.amount)}</span>
+      </div>
+      <div class="row muted">
+        <span>${booking.paymentMode} / ${formatPaymentStatus(booking)}${booking.paymentGateway ? ` / ${booking.paymentGateway}` : ''}</span>
+        <span>${booking.cancelledAt ? `Cancelled by ${booking.cancelledByEmail || booking.cancelledByName || 'system'}` : 'Active booking record'}</span>
+      </div>
     </div>
   `).join('');
+
+  renderPagination(elements.adminBookingsPagination, pageData, nextPage => {
+    state.adminBookingsPage.page = nextPage;
+    loadAdminBookings();
+  });
 }
 
-async function loadAdminBookings() {
+async function loadAdminBookings(options = {}) {
   if (!isAdmin()) return;
+
+  if (options.resetPage) {
+    state.adminBookingsPage.page = 0;
+  }
+
+  state.adminBookingsPage.status = elements.adminBookingsStatus?.value || '';
+  const params = new URLSearchParams({
+    page: String(state.adminBookingsPage.page),
+    size: String(state.adminBookingsPage.size)
+  });
+  if (state.adminBookingsPage.status) {
+    params.set('status', state.adminBookingsPage.status);
+  }
+
   try {
-    const bookings = await api('/api/admin/bookings', { auth: true });
-    renderAdminBookings(bookings);
+    const pageData = await api(`/api/admin/bookings/paged?${params.toString()}`, { auth: true });
+    if (pageData.totalPages > 0 && !pageData.items.length && state.adminBookingsPage.page >= pageData.totalPages) {
+      state.adminBookingsPage.page = pageData.totalPages - 1;
+      return loadAdminBookings();
+    }
+    renderAdminBookings(pageData);
   } catch (err) {
+    elements.adminBookingsSummary.textContent = 'Could not fetch admin bookings.';
     elements.adminBookings.innerHTML = `<div class="item muted">${err.message}</div>`;
+    renderPagination(elements.adminBookingsPagination, null, () => {});
   }
 }
 
@@ -632,12 +827,153 @@ async function loadAdminMetrics() {
   }
 }
 
+function renderAdminTrends(trend) {
+  const items = trend?.items || [];
+  if (!items.length) {
+    elements.adminTrendSummary.innerHTML = '<div class="item muted">No booking trend data is available for the selected date range.</div>';
+    elements.adminTrendChart.innerHTML = '';
+    return;
+  }
+
+  const maxVolume = Math.max(...items.map(point => point.confirmedBookings + point.cancelledBookings), 1);
+  elements.adminTrendSummary.innerHTML = `
+    <div class="metric panel-metric">
+      <div class="label">Window</div>
+      <div class="value">${trend.fromDate} to ${trend.toDate}</div>
+    </div>
+    <div class="metric panel-metric">
+      <div class="label">Booked</div>
+      <div class="value">${trend.totalConfirmedBookings}</div>
+    </div>
+    <div class="metric panel-metric">
+      <div class="label">Cancelled</div>
+      <div class="value">${trend.totalCancelledBookings}</div>
+    </div>
+    <div class="metric panel-metric">
+      <div class="label">Revenue</div>
+      <div class="value">${formatAmount(trend.totalConfirmedRevenue)}</div>
+    </div>
+  `;
+
+  elements.adminTrendChart.innerHTML = items.map(point => {
+    const confirmedWidth = ((point.confirmedBookings / maxVolume) * 100).toFixed(1);
+    const cancelledWidth = ((point.cancelledBookings / maxVolume) * 100).toFixed(1);
+
+    return `
+      <div class="trend-row">
+        <div class="trend-date">${formatDisplayDate(point.date)}</div>
+        <div class="trend-bar-track">
+          <span class="trend-bar confirmed" style="width:${confirmedWidth}%"></span>
+          <span class="trend-bar cancelled" style="width:${cancelledWidth}%"></span>
+        </div>
+        <div class="trend-values">
+          <span>B ${point.confirmedBookings}</span>
+          <span>C ${point.cancelledBookings}</span>
+          <strong>${formatAmount(point.confirmedRevenue)}</strong>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadAdminTrends() {
+  if (!isAdmin()) return;
+
+  state.adminTrendRangeDays = Number(elements.adminTrendRange?.value || state.adminTrendRangeDays || 7);
+  const toDate = new Date();
+  toDate.setHours(0, 0, 0, 0);
+  const fromDate = new Date(toDate);
+  fromDate.setDate(fromDate.getDate() - (state.adminTrendRangeDays - 1));
+
+  const params = new URLSearchParams({
+    fromDate: toIsoDate(fromDate),
+    toDate: toIsoDate(toDate)
+  });
+
+  try {
+    const trend = await api(`/api/admin/metrics/trends?${params.toString()}`, { auth: true });
+    renderAdminTrends(trend);
+  } catch (err) {
+    elements.adminTrendSummary.innerHTML = `<div class="item muted">${err.message}</div>`;
+    elements.adminTrendChart.innerHTML = '';
+  }
+}
+
+function renderAdminMonitoring(monitoring) {
+  const appInfo = monitoring.info?.app || {};
+  const javaInfo = monitoring.info?.java || {};
+  const metricsCount = monitoring.metrics?.names?.length || 0;
+
+  elements.adminMonitoring.innerHTML = `
+    <div class="monitor-card">
+      <div class="label">Health</div>
+      <div class="monitor-value">${monitoring.health?.status || 'UNKNOWN'}</div>
+      <div class="monitor-copy">Overall actuator health endpoint.</div>
+    </div>
+    <div class="monitor-card">
+      <div class="label">Readiness</div>
+      <div class="monitor-value">${monitoring.readiness?.status || 'UNKNOWN'}</div>
+      <div class="monitor-copy">Traffic acceptance probe for deploy/load balancer checks.</div>
+    </div>
+    <div class="monitor-card">
+      <div class="label">App Stage</div>
+      <div class="monitor-value">${appInfo.stage || '-'}</div>
+      <div class="monitor-copy">${appInfo.frontend || 'Frontend unknown'}</div>
+    </div>
+    <div class="monitor-card">
+      <div class="label">Metrics</div>
+      <div class="monitor-value">${metricsCount}</div>
+      <div class="monitor-copy">Actuator metric names currently exposed.</div>
+    </div>
+    <div class="monitor-card">
+      <div class="label">Java</div>
+      <div class="monitor-value">${javaInfo.version || '-'}</div>
+      <div class="monitor-copy">${javaInfo.vendor || 'JVM vendor unavailable'}</div>
+    </div>
+    <div class="monitor-card">
+      <div class="label">Prometheus</div>
+      <div class="monitor-value">Enabled</div>
+      <div class="monitor-copy">Scrape endpoint available at /actuator/prometheus.</div>
+    </div>
+  `;
+}
+
+async function loadAdminMonitoring() {
+  if (!isAdmin()) return;
+  try {
+    const [health, readiness, info, metrics] = await Promise.all([
+      api('/actuator/health'),
+      api('/actuator/health/readiness'),
+      api('/actuator/info'),
+      api('/actuator/metrics', { auth: true })
+    ]);
+    renderAdminMonitoring({ health, readiness, info, metrics });
+  } catch (err) {
+    elements.adminMonitoring.innerHTML = `<div class="item muted">${err.message}</div>`;
+  }
+}
+
+async function loadAdminDashboard() {
+  if (!isAdmin()) return;
+  await Promise.all([
+    loadAdminMetrics(),
+    loadAdminBookings(),
+    loadAdminTrends(),
+    loadAdminMonitoring()
+  ]);
+}
+
 function updateAuthStatus() {
   const user = currentUser();
   if (!user) {
     elements.authStatus.textContent = 'Not logged in.';
     elements.bookingForm.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
+    elements.adminBookingsSummary.textContent = 'Admin login required.';
+    elements.adminBookings.innerHTML = '<div class="item muted">Admin login required.</div>';
+    elements.adminTrendSummary.innerHTML = '<div class="item muted">Admin login required.</div>';
+    elements.adminTrendChart.innerHTML = '';
+    elements.adminMonitoring.innerHTML = '<div class="item muted">Admin login required.</div>';
     loadMyBookings();
     return;
   }
@@ -646,10 +982,14 @@ function updateAuthStatus() {
   loadMyBookings();
   if (user.role === 'ADMIN') {
     elements.adminPanel.classList.remove('hidden');
-    loadAdminMetrics();
-    loadAdminBookings();
+    loadAdminDashboard();
   } else {
     elements.adminPanel.classList.add('hidden');
+    elements.adminBookingsSummary.textContent = 'Admin login required.';
+    elements.adminBookings.innerHTML = '<div class="item muted">Admin login required.</div>';
+    elements.adminTrendSummary.innerHTML = '<div class="item muted">Admin login required.</div>';
+    elements.adminTrendChart.innerHTML = '';
+    elements.adminMonitoring.innerHTML = '<div class="item muted">Admin login required.</div>';
   }
 }
 
@@ -753,8 +1093,7 @@ async function handlePaymentAction() {
     elements.bookingForm.classList.add('hidden');
     await loadMyBookings();
     if (isAdmin()) {
-      await loadAdminMetrics();
-      await loadAdminBookings();
+      await loadAdminDashboard();
     }
     if (state.selectedSchedule) {
       await loadSeats(state.selectedSchedule.id, false, true);
@@ -842,6 +1181,48 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   resetBookingFlow();
   clearAuth();
 });
+
+if (elements.myBookingsStatus) {
+  elements.myBookingsStatus.addEventListener('change', () => {
+    loadMyBookings({ resetPage: true });
+  });
+}
+
+if (elements.myBookingsRefresh) {
+  elements.myBookingsRefresh.addEventListener('click', () => {
+    loadMyBookings();
+  });
+}
+
+if (elements.adminBookingsStatus) {
+  elements.adminBookingsStatus.addEventListener('change', () => {
+    loadAdminBookings({ resetPage: true });
+  });
+}
+
+if (elements.adminBookingsRefresh) {
+  elements.adminBookingsRefresh.addEventListener('click', () => {
+    loadAdminBookings();
+  });
+}
+
+if (elements.adminTrendRange) {
+  elements.adminTrendRange.addEventListener('change', () => {
+    loadAdminTrends();
+  });
+}
+
+if (elements.adminTrendsRefresh) {
+  elements.adminTrendsRefresh.addEventListener('click', () => {
+    loadAdminTrends();
+  });
+}
+
+if (elements.adminMonitorRefresh) {
+  elements.adminMonitorRefresh.addEventListener('click', () => {
+    loadAdminMonitoring();
+  });
+}
 
 document.getElementById('admin-route-form').addEventListener('submit', async event => {
   event.preventDefault();

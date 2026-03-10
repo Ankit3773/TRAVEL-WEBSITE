@@ -14,6 +14,7 @@ import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @RequiredArgsConstructor
+@Slf4j
 public class FleetSeedConfig {
 
     private final RouteRepository routeRepository;
@@ -42,26 +44,29 @@ public class FleetSeedConfig {
             }
 
             plannedBusNumbers.clear();
+            try {
+                // Daily commute fleet (15 buses total)
+                seedRoutePair("Gaya", 110, 3, 1, LocalTime.of(8, 0), 180, false);
+                seedRoutePair("Jehanabad", 50, 2, 1, LocalTime.of(7, 30), 105, false);
+                seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(7, 0), 150, false);
+                seedRoutePair("Arrah", 65, 2, 1, LocalTime.of(8, 30), 105, false);
+                seedRoutePair("Bihta", 35, 1, 1, LocalTime.of(9, 0), 60, false);
 
-            // Daily commute fleet (15 buses total)
-            seedRoutePair("Gaya", 110, 3, 1, LocalTime.of(8, 0), 180, false);
-            seedRoutePair("Jehanabad", 50, 2, 1, LocalTime.of(7, 30), 105, false);
-            seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(7, 0), 150, false);
-            seedRoutePair("Arrah", 65, 2, 1, LocalTime.of(8, 30), 105, false);
-            seedRoutePair("Bihta", 35, 1, 1, LocalTime.of(9, 0), 60, false);
+                // Tourism fleet (5 AC buses total, AC only) - Bihar key tourism circuits
+                seedRoutePair("Bodh Gaya", 125, 1, 0, LocalTime.of(6, 30), 210, true);
+                seedRoutePair("Rajgir", 100, 1, 0, LocalTime.of(6, 0), 150, true);
+                seedRoutePair("Nalanda", 95, 1, 0, LocalTime.of(7, 0), 165, true);
+                seedRoutePair("Vaishali", 60, 1, 0, LocalTime.of(8, 0), 120, true);
+                seedRoutePair("Pawapuri", 95, 1, 0, LocalTime.of(7, 30), 165, true);
 
-            // Tourism fleet (5 AC buses total, AC only) - Bihar key tourism circuits
-            seedRoutePair("Bodh Gaya", 125, 1, 0, LocalTime.of(6, 30), 210, true);
-            seedRoutePair("Rajgir", 100, 1, 0, LocalTime.of(6, 0), 150, true);
-            seedRoutePair("Nalanda", 95, 1, 0, LocalTime.of(7, 0), 165, true);
-            seedRoutePair("Vaishali", 60, 1, 0, LocalTime.of(8, 0), 120, true);
-            seedRoutePair("Pawapuri", 95, 1, 0, LocalTime.of(7, 30), 165, true);
+                if (pruneLegacy) {
+                    deactivateLegacyFleet();
+                }
 
-            if (pruneLegacy) {
-                deactivateLegacyFleet();
+                syncActiveScheduleFares();
+            } catch (Exception ex) {
+                log.warn("Fleet seed sync skipped due to startup database error: {}", ex.getMessage(), ex);
             }
-
-            syncActiveScheduleFares();
         };
     }
 

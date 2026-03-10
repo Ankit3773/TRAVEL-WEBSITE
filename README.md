@@ -21,6 +21,12 @@ Fill `.env` with your Supabase values, then run:
 ./run-local.sh
 ```
 
+Production run:
+
+```bash
+./run-prod.sh
+```
+
 Manual way (optional), set environment variables:
 
 ```bash
@@ -31,6 +37,7 @@ export JWT_SECRET='<long_random_secret_or_base64_key>'
 export APP_ADMIN_EMAIL='admin@narayantravels.com'
 export APP_ADMIN_PASSWORD='ChangeMe123!'
 export APP_PAYMENT_GATEWAY='MOCK'
+export APP_FRONTEND_ALLOWED_ORIGINS='https://narayantravels.in,https://www.narayantravels.in'
 ```
 
 Start app:
@@ -51,6 +58,7 @@ Current integration suite covers:
 - online payment checkout/verify flow
 - cancellation flow
 - admin CRUD and metrics endpoints
+- readiness probe verification
 
 ## Frontend Flow
 - Home/search page: route + date search on `/`
@@ -58,8 +66,17 @@ Current integration suite covers:
 - Seat selection page: bus-style seat map with auto-refresh polling while active
 - Payment page: supports `PAY_ON_BOARD` confirmation and mock `ONLINE` checkout
 - Booking confirmation page: final booking + payment summary
+- Booking history section: status filter, pagination, and cancel action
+- Admin dashboard: metrics, booking trends, monitoring cards, and paged booking records
 
 The frontend is served directly by Spring Boot from `src/main/resources/static`.
+For separate frontend hosting on S3 or Vercel, export the static bundle with `./deploy/frontend/export-static-site.sh`.
+
+## Deployment
+- Deployment guide: [`deploy/README.md`](deploy/README.md)
+- EC2 backend helper: `deploy/aws/ec2/publish-backend.sh`
+- Frontend export helper: `deploy/frontend/export-static-site.sh`
+- Production profile: `src/main/resources/application-prod.properties`
 
 ## API Docs (Swagger)
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
@@ -70,6 +87,7 @@ Use JWT from `/api/auth/login` or `/api/auth/register`, then click `Authorize` i
 
 ## Observability
 - Health (public): `GET /actuator/health`
+- Readiness (public): `GET /actuator/health/readiness`
 - App info (public): `GET /actuator/info`
 - Metrics (admin JWT): `GET /actuator/metrics`
 - Prometheus scrape (admin JWT): `GET /actuator/prometheus`
@@ -166,10 +184,14 @@ Create schedule:
   "busId": 1,
   "travelDate": "2026-03-06",
   "departureTime": "08:00:00",
-  "arrivalTime": "11:00:00",
-  "baseFare": 200
+  "arrivalTime": "11:00:00"
 }
 ```
+
+Schedule fare is calculated automatically:
+- regular AC: `Rs 3/km`
+- regular non-AC: `Rs 2.5/km`
+- tourism: `Rs 5/km`
 
 Book seats (multi-seat):
 

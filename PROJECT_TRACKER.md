@@ -1,6 +1,6 @@
 # NARAYAN TRAVELS - Project Tracker
 
-Last updated: 2026-03-10 (Stage 1 to Stage 7 completed)
+Last updated: 2026-03-10 (Stage 1 to Stage 9 completed in repo scope)
 
 ## 1) Project Vision
 Build an online bus booking system for Bihar routes with:
@@ -10,16 +10,16 @@ Build an online bus booking system for Bihar routes with:
 - Authentication and secure APIs
 
 ## 2) Current Status Snapshot
-- Overall progress: In progress
+- Overall progress: Repo scope complete, production execution still manual
 - Stack currently implemented:
   - Backend: Spring Boot (Java 17)
   - Database: Supabase PostgreSQL
   - Frontend: Static HTML/CSS/JS served by backend with Stage 6 multi-step booking flow
 - Local status: Running on `http://localhost:8080`
 - Checklist status (48-step plan):
-  - Done: `36`
-  - Partial: `7`
-  - Pending: `5`
+  - Done: `46`
+  - Partial: `2`
+  - Pending: `0`
   - Verification-only: `0`
 
 ## 3) Completed Work
@@ -89,19 +89,22 @@ Build an online bus booking system for Bihar routes with:
 - Admin panel UI (create + metrics + bookings)
 - Tourism section UI
 - Forgot/reset password UI
+- Booking history console with status filter and pagination
+- Admin dashboard with booking filters, trends, and monitoring
 - Logo and favicon updated to Narayan Travels branding
 
 ### 3.8 Observability and Docs
 - Swagger/OpenAPI integrated
 - Actuator endpoints enabled
+- Readiness probe now reports traffic acceptance after app startup
 - Prometheus metrics endpoint available
 - Request correlation ID logging (`X-Request-Id`) implemented
 
 ### 3.9 Test Status
 - Latest run: `./mvnw -q test` (2026-03-10)
 - Result: pass
-  - `BookingFlowIntegrationTest`: 20/20 passed
-  - `TravelappApplicationTests`: 1/1 passed
+  - `BookingFlowIntegrationTest`: 21/21 passed
+  - `TravelappApplicationTests`: 2/2 passed
 
 ### 3.10 Stage 1 Completion (2026-03-06)
 - Project stack finalized for current delivery:
@@ -253,6 +256,38 @@ Build an online bus booking system for Bihar routes with:
   - admin metrics reflect cancelled booking counts
 - Re-ran the full suite successfully after Stage 7 changes
 
+### 3.17 Stage 8 Completion (2026-03-10, repo scope)
+- Added deployment-ready production profile:
+  - `application-prod.properties`
+  - `run-prod.sh`
+- Added deployment-safe frontend/backend split support:
+  - static `config.js`
+  - configurable frontend API base URL in `app.js`
+  - CORS configuration via `APP_FRONTEND_ALLOWED_ORIGINS`
+- Added AWS EC2 backend deployment assets:
+  - EC2 bootstrap script
+  - systemd service unit
+  - nginx reverse-proxy config
+  - backend publish helper script
+- Added static frontend export helper for S3/Vercel deployment:
+  - `deploy/frontend/export-static-site.sh`
+- Added deployment documentation/runbook under `deploy/README.md`
+- Production Supabase DB wiring is now environment-driven and documented for deployment
+
+### 3.18 Stage 9 Completion (2026-03-10, repo scope)
+- Completed customer history delivery in the live UI:
+  - paged booking history endpoint wired on the frontend
+  - booking-status filter and refresh controls added
+  - cancel action now refreshes history, admin dashboard, and seat availability
+- Completed admin dashboard delivery in the live UI:
+  - paged admin booking list with status filter
+  - trend panel wired to `/api/admin/metrics/trends`
+  - monitoring panel wired to health, readiness, info, and metrics endpoints
+- Completed readiness lifecycle work:
+  - app publishes `ACCEPTING_TRAFFIC` on startup
+  - app publishes `REFUSING_TRAFFIC` on shutdown
+- Added readiness integration verification for `/actuator/health/readiness`
+
 ## 4) Stage-wise Checklist Audit (What Is Left)
 
 ### Stage 1 - Project Setup
@@ -300,13 +335,21 @@ Build an online bus booking system for Bihar routes with:
   - Current scope relies on backend integration tests plus live UI verification on localhost
 
 ### Stage 8 - Deployment
-- Left: 5 steps (`39, 40, 41, 42, 43`)
+- Left: 0 repo steps
 - Notes:
-  - AWS deployment not started
-  - Domain setup optional and pending
+  - Deployment automation and runbook are now in place
+  - Manual operator prerequisites still apply:
+    - create AWS account
+    - create EC2/S3/Vercel resources
+    - point DNS/domain if desired
 
 ### Stage 9 - Final Features
-- Left: 0 steps (`44-48` marked implemented at current scope)
+- Left: 0 steps
+- Notes:
+  - Booking history is available in API and UI
+  - Cancellation API is implemented and wired in the customer console
+  - Admin booking dashboard includes metrics, trends, monitoring, and paged bookings
+  - Authentication and role-based API protection remain enforced
 
 ## 5) API Coverage (Current)
 
@@ -355,10 +398,11 @@ Build an online bus booking system for Bihar routes with:
 - `GET /api/admin/metrics/trends?fromDate=&toDate=`
 
 ## 6) Next Recommended Milestone
-Implement backend foundations for remaining critical gaps:
-1. Payment integration baseline (`PENDING/PAID`, gateway callback workflow)
-2. Payment gateway callback verification and failure recovery
-3. Frontend migration milestone (React pages for booking + payment)
+Execute the remaining manual production steps:
+1. Provision AWS resources (EC2 and optionally S3/CloudFront)
+2. Run `deploy/aws/ec2/publish-backend.sh` against the target EC2 host
+3. Export frontend with `deploy/frontend/export-static-site.sh` if hosting separately
+4. Point DNS/domain records and update `APP_FRONTEND_ALLOWED_ORIGINS`
 
 ## 7) Local Runbook
 ```bash

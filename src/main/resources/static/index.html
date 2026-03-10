@@ -288,13 +288,25 @@
     </section>
 
     <section class="card">
-      <div class="section-head">
+      <div class="section-head section-head-split">
         <div>
           <p class="section-tag">Customer History</p>
           <h2>My bookings</h2>
         </div>
+        <div class="section-actions">
+          <label class="inline-control">Status
+            <select id="my-bookings-status">
+              <option value="">ALL</option>
+              <option value="BOOKED">BOOKED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+          </label>
+          <button id="my-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
       </div>
+      <div id="my-bookings-summary" class="summary muted-summary">Login to see your bookings.</div>
       <div id="my-bookings" class="list"></div>
+      <div id="my-bookings-pagination" class="pagination-bar hidden"></div>
     </section>
 
     <section class="card">
@@ -326,6 +338,39 @@
         </div>
       </div>
       <div id="admin-metrics" class="metrics-grid"></div>
+      <div class="dashboard-grid">
+        <section class="panel-card">
+          <div class="section-head section-head-split section-head-tight">
+            <div>
+              <p class="section-tag">Booking Trends</p>
+              <h3>Recent booking activity</h3>
+            </div>
+            <div class="section-actions">
+              <label class="inline-control">Window
+                <select id="admin-trend-range">
+                  <option value="7">Last 7 days</option>
+                  <option value="14">Last 14 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+              </label>
+              <button id="admin-trends-refresh" type="button" class="secondary compact-btn">Refresh</button>
+            </div>
+          </div>
+          <div id="admin-trend-summary" class="trend-summary-grid"></div>
+          <div id="admin-trend-chart" class="trend-chart"></div>
+        </section>
+
+        <section class="panel-card">
+          <div class="section-head section-head-split section-head-tight">
+            <div>
+              <p class="section-tag">Monitoring</p>
+              <h3>System status</h3>
+            </div>
+            <button id="admin-monitor-refresh" type="button" class="secondary compact-btn">Refresh</button>
+          </div>
+          <div id="admin-monitoring" class="monitor-grid"></div>
+        </section>
+      </div>
       <div class="admin-grid">
         <form id="admin-route-form" class="form admin-form">
           <h3>Create Route</h3>
@@ -362,11 +407,30 @@
         </form>
       </div>
       <div id="admin-status" class="summary"></div>
-      <h3>All Bookings</h3>
+      <div class="section-head section-head-split section-head-tight">
+        <div>
+          <p class="section-tag">Booking Dashboard</p>
+          <h3>All bookings</h3>
+        </div>
+        <div class="section-actions">
+          <label class="inline-control">Status
+            <select id="admin-bookings-status">
+              <option value="">ALL</option>
+              <option value="BOOKED">BOOKED</option>
+              <option value="CANCELLED">CANCELLED</option>
+              <option value="LOCKED">LOCKED</option>
+            </select>
+          </label>
+          <button id="admin-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
+      </div>
+      <div id="admin-bookings-summary" class="summary muted-summary">Admin bookings will appear here.</div>
       <div id="admin-bookings" class="list"></div>
+      <div id="admin-bookings-pagination" class="pagination-bar hidden"></div>
     </section>
   </main>
 
+  <script src="/config.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

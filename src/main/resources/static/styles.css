@@ -183,6 +183,45 @@ body {
   margin-bottom: 18px;
 }
 
+.section-head-split {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.section-head-tight {
+  margin-bottom: 6px;
+}
+
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.inline-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.inline-control select {
+  min-width: 128px;
+  height: 40px;
+}
+
+.compact-btn {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.muted-summary {
+  margin-top: 10px;
+}
+
 h2,
 h3,
 h4 {
@@ -648,6 +687,26 @@ button.secondary {
   background: #526279;
 }
 
+.page-btn {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(205, 179, 143, 0.95);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+}
+
+.page-btn.active {
+  background: linear-gradient(90deg, var(--deep-blue), #2f6cb7);
+  color: #fff;
+  border-color: rgba(36, 77, 137, 0.92);
+}
+
+.page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .journey-sidebar {
   display: grid;
   gap: 14px;
@@ -838,6 +897,13 @@ button.secondary {
   margin-bottom: 14px;
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
 .admin-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 14px;
@@ -880,6 +946,126 @@ select {
   margin-top: 8px;
   font-size: 28px;
   font-weight: 900;
+}
+
+.panel-card {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.panel-metric .value {
+  font-size: 22px;
+}
+
+.pagination-bar {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 252, 246, 0.72);
+  border: 1px solid rgba(222, 197, 162, 0.88);
+}
+
+.pagination-copy {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pagination-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trend-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.trend-chart {
+  display: grid;
+  gap: 10px;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 170px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(222, 198, 165, 0.92);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.trend-date {
+  font-size: 13px;
+  font-weight: 800;
+  color: #46566f;
+}
+
+.trend-bar-track {
+  height: 14px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(228, 216, 197, 0.9);
+}
+
+.trend-bar {
+  display: block;
+  height: 100%;
+}
+
+.trend-bar.confirmed {
+  background: linear-gradient(90deg, #1f4f8f, #2f6cb7);
+}
+
+.trend-bar.cancelled {
+  background: linear-gradient(90deg, #ef7d45, #cc4b10);
+}
+
+.trend-values {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #46566f;
+}
+
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.monitor-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(220, 197, 166, 0.92);
+  background: rgba(255, 255, 255, 0.8);
+  display: grid;
+  gap: 8px;
+}
+
+.monitor-value {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.monitor-copy {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .item .muted {
@@ -956,6 +1142,9 @@ select {
   .forgot-panel,
   .admin-grid,
   .metrics-grid,
+  .dashboard-grid,
+  .trend-summary-grid,
+  .monitor-grid,
   .search-panel,
   .stepper {
     grid-template-columns: 1fr;
@@ -1013,13 +1202,29 @@ select {
   .item .row,
   .bus-card-top,
   .confirmation-row,
-  .summary-row {
+  .summary-row,
+  .trend-row {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .flow-status {
     text-align: left;
+  }
+
+  .pagination-bar,
+  .section-actions {
+    align-items: flex-start;
+  }
+
+  .trend-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .trend-values {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .seats {
