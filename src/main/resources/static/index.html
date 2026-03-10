@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NARAYAN TRAVELS</title>
+  <link rel="icon" type="image/png" href="/logo-narayan-travels.png?v=2" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg-shape bg-shape-1"></div>
+  <div class="bg-shape bg-shape-2"></div>
+
+  <header class="hero">
+    <img class="site-logo" src="/logo-narayan-travels.png?v=2" alt="Narayan Travels logo" />
+    <h1>Online Bus Booking</h1>
+    <p class="subtitle">Bihar routes, real-time seats, quick booking flow.</p>
+  </header>
+
+  <main class="grid">
+    <section class="card full-width auth-card">
+      <h2>Customer Access</h2>
+      <div class="auth-grid">
+        <form id="register-form" class="form auth-form">
+          <h3>Register</h3>
+          <label>Name<input id="reg-name" type="text" autocomplete="name" required /></label>
+          <label>Email<input id="reg-email" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="reg-password" type="password" autocomplete="new-password" minlength="6" required /></label>
+          <button type="submit">Create Account</button>
+        </form>
+
+        <form id="login-form" class="form auth-form">
+          <h3>Login</h3>
+          <label>Email<input id="login-email" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="login-password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit">Login</button>
+          <button id="forgot-toggle-btn" type="button" class="secondary">Forgot Password</button>
+          <button id="logout-btn" type="button" class="secondary">Logout</button>
+        </form>
+      </div>
+
+      <div id="forgot-password-panel" class="forgot-panel hidden">
+        <form id="forgot-password-form" class="form auth-form">
+          <h3>Forgot Password</h3>
+          <label>Email<input id="forgot-email" type="email" required /></label>
+          <button type="submit">Generate Reset Token</button>
+        </form>
+
+        <form id="reset-password-form" class="form auth-form">
+          <h3>Reset Password</h3>
+          <label>Reset Token<input id="reset-token" type="text" required /></label>
+          <label>New Password<input id="reset-new-password" type="password" minlength="6" required /></label>
+          <button type="submit">Update Password</button>
+        </form>
+      </div>
+      <div id="forgot-status" class="summary"></div>
+      <div id="auth-status" class="summary">Not logged in.</div>
+    </section>
+
+    <section class="card full-width search-card">
+      <form id="search-form" class="search-modern-form">
+        <div class="search-panel">
+          <div class="search-segment input-segment">
+            <div class="segment-icon" aria-hidden="true">🚌</div>
+            <label for="source">From</label>
+            <input id="source" type="text" placeholder="Patna" />
+          </div>
+
+          <div class="search-segment input-segment">
+            <div class="segment-icon" aria-hidden="true">🚌</div>
+            <label for="destination">To</label>
+            <input id="destination" type="text" placeholder="Gaya" />
+          </div>
+
+          <div class="search-segment date-segment">
+            <div class="segment-icon" aria-hidden="true">📅</div>
+            <div class="date-content">
+              <div class="journey-label">Date of Journey</div>
+              <div class="journey-date-line">
+                <span id="journey-date-text" class="journey-date-text">--</span>
+                <span id="journey-day-hint" class="journey-day-hint">(Select date)</span>
+              </div>
+            </div>
+            <div class="quick-date-actions">
+              <button id="date-today-btn" type="button" class="quick-date-btn">Today</button>
+              <button id="date-tomorrow-btn" type="button" class="quick-date-btn">Tomorrow</button>
+            </div>
+            <input id="travel-date" type="date" class="sr-only-date" />
+          </div>
+
+          <div class="search-segment women-segment">
+            <div class="women-copy">
+              <div class="women-icon" aria-hidden="true">👩🏻</div>
+              <div>
+                <div class="women-title">Booking for women</div>
+                <button type="button" class="women-link">Know more</button>
+              </div>
+            </div>
+            <label class="toggle-switch" for="women-toggle">
+              <input id="women-toggle" type="checkbox" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="search-action-wrap">
+          <button type="submit" class="search-buses-btn">🔍 Search buses</button>
+        </div>
+      </form>
+      <div id="search-status" class="summary"></div>
+      <div id="schedule-list" class="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Seat Availability</h2>
+      <p class="hint">Select a schedule from left. Login to book a seat.</p>
+      <div id="seat-summary" class="summary">No schedule selected.</div>
+      <div id="seat-grid" class="seats"></div>
+
+      <form id="booking-form" class="form booking-form hidden">
+        <h3>Book Selected Seat</h3>
+        <label>Seat Number<input id="book-seat" type="number" readonly /></label>
+        <label>Passenger Name<input id="book-name" type="text" required /></label>
+        <label>Passenger Phone<input id="book-phone" type="text" required /></label>
+        <label>Payment Mode
+          <select id="book-payment">
+            <option value="PAY_ON_BOARD">PAY_ON_BOARD</option>
+            <option value="ONLINE">ONLINE</option>
+          </select>
+        </label>
+        <button type="submit">Confirm Booking</button>
+      </form>
+      <div id="booking-status" class="summary"></div>
+    </section>
+
+    <section class="card full-width">
+      <h2>My Bookings</h2>
+      <div id="my-bookings" class="list"></div>
+    </section>
+
+    <section id="admin-panel" class="card full-width hidden">
+      <h2>Admin Console</h2>
+      <div id="admin-metrics" class="metrics-grid"></div>
+      <div class="admin-grid">
+        <form id="admin-route-form" class="form admin-form">
+          <h3>Create Route</h3>
+          <label>Source<input id="admin-route-source" type="text" required /></label>
+          <label>Destination<input id="admin-route-destination" type="text" required /></label>
+          <label>Distance KM<input id="admin-route-distance" type="number" min="1" required /></label>
+          <button type="submit">Add Route</button>
+        </form>
+
+        <form id="admin-bus-form" class="form admin-form">
+          <h3>Create Bus</h3>
+          <label>Bus Number<input id="admin-bus-number" type="text" required /></label>
+          <label>Bus Type
+            <select id="admin-bus-type">
+              <option value="NON_AC">NON_AC</option>
+              <option value="AC">AC</option>
+              <option value="SEATER">SEATER</option>
+              <option value="SLEEPER">SLEEPER</option>
+            </select>
+          </label>
+          <label>Total Seats<input id="admin-bus-seats" type="number" min="1" required /></label>
+          <button type="submit">Add Bus</button>
+        </form>
+
+        <form id="admin-schedule-form" class="form admin-form">
+          <h3>Create Schedule</h3>
+          <label>Route ID<input id="admin-sch-route-id" type="number" min="1" required /></label>
+          <label>Bus ID<input id="admin-sch-bus-id" type="number" min="1" required /></label>
+          <label>Date<input id="admin-sch-date" type="date" required /></label>
+          <label>Departure<input id="admin-sch-departure" type="time" required /></label>
+          <label>Arrival<input id="admin-sch-arrival" type="time" required /></label>
+          <label>Base Fare<input id="admin-sch-fare" type="number" min="0" required /></label>
+          <button type="submit">Add Schedule</button>
+        </form>
+      </div>
+      <div id="admin-status" class="summary"></div>
+      <h3>All Bookings</h3>
+      <div id="admin-bookings" class="list"></div>
+    </section>
+
+    <section class="card full-width">
+      <h2>Active Routes</h2>
+      <div id="route-list" class="list"></div>
+    </section>
+
+    <section class="card full-width">
+      <h2>Tourism in Bihar (AC Fleet)</h2>
+      <p class="hint">Dedicated tourism circuits with 5 AC buses covering major Bihar destinations.</p>
+      <div id="tourism-route-list" class="list"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

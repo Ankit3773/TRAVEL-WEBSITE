@@ -1,0 +1,190 @@
+package com.travel.travelapp.config;
+
+import com.travel.travelapp.entity.Bus;
+import com.travel.travelapp.entity.BusType;
+import com.travel.travelapp.entity.Route;
+import com.travel.travelapp.entity.TripSchedule;
+import com.travel.travelapp.repository.BusRepository;
+import com.travel.travelapp.repository.RouteRepository;
+import com.travel.travelapp.repository.TripScheduleRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@RequiredArgsConstructor
+public class FleetSeedConfig {
+
+    private final RouteRepository routeRepository;
+    private final BusRepository busRepository;
+    private final TripScheduleRepository tripScheduleRepository;
+
+    private int acBusSeq = 1;
+    private int nonAcBusSeq = 1;
+    private int tourismAcSeq = 1;
+    private final Set<String> plannedBusNumbers = new HashSet<>();
+
+    @Bean
+    public CommandLineRunner seedFleetData(
+            @Value("${app.seed.fleet.enabled:true}") boolean seedEnabled,
+            @Value("${app.seed.fleet.prune-legacy:true}") boolean pruneLegacy) {
+        return args -> {
+            if (!seedEnabled) {
+                return;
+            }
+
+            plannedBusNumbers.clear();
+
+            // Daily commute fleet (15 buses total)
+            seedRoutePair("Gaya", 110, 3, 1, LocalTime.of(8, 0), 180, 260, 180, false);
+            seedRoutePair("Jehanabad", 50, 2, 1, LocalTime.of(7, 30), 105, 140, 90, false);
+            seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(7, 0), 150, 180, 120, false);
+            seedRoutePair("Arrah", 65, 2, 1, LocalTime.of(8, 30), 105, 170, 110, false);
+            seedRoutePair("Bihta", 35, 1, 1, LocalTime.of(9, 0), 60, 110, 70, false);
+
+            // Tourism fleet (5 AC buses total, AC only) - Bihar key tourism circuits
+            seedRoutePair("Bodh Gaya", 125, 1, 0, LocalTime.of(6, 30), 210, 340, 0, true);
+            seedRoutePair("Rajgir", 100, 1, 0, LocalTime.of(6, 0), 150, 320, 0, true);
+            seedRoutePair("Nalanda", 95, 1, 0, LocalTime.of(7, 0), 165, 300, 0, true);
+            seedRoutePair("Vaishali", 60, 1, 0, LocalTime.of(8, 0), 120, 280, 0, true);
+            seedRoutePair("Pawapuri", 95, 1, 0, LocalTime.of(7, 30), 165, 300, 0, true);
+
+            if (pruneLegacy) {
+                deactivateLegacyFleet();
+            }
+        };
+    }
+
+    private void seedRoutePair(
+            String city,
+            int distanceKm,
+            int acCount,
+            int nonAcCount,
+            LocalTime outboundDeparture,
+            int travelMinutes,
+            int acFare,
+            int nonAcFare,
+            boolean tourismBusNumbering) {
+        Route outbound = getOrCreateRoute("Patna", city, distanceKm, tourismBusNumbering);
+        Route inbound = getOrCreateRoute(city, "Patna", distanceKm, tourismBusNumbering);
+
+        for (int i = 0; i < acCount; i++) {
+            String busNumber = tourismBusNumbering
+                    ? String.format("NT-TO-AC-%03d", tourismAcSeq++)
+                    : String.format("NT-AC-%03d", acBusSeq++);
+            Bus bus = getOrCreateBus(busNumber, BusType.AC, tourismBusNumbering ? 36 : 40);
+            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, BigDecimal.valueOf(acFare));
+        }
+
+        for (int i = 0; i < nonAcCount; i++) {
+            String busNumber = String.format("NT-NA-%03d", nonAcBusSeq++);
+            Bus bus = getOrCreateBus(busNumber, BusType.NON_AC, 42);
+            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, BigDecimal.valueOf(nonAcFare));
+        }
+    }
+
+    private void seedBidirectionalSchedules(
+            Bus bus,
+            Route outbound,
+            Route inbound,
+            LocalTime outboundDeparture,
+            int travelMinutes,
+            BigDecimal fare) {
+        for (int day = 1; day <= 3; day++) {
+            LocalDate travelDate = LocalDate.now().plusDays(day);
+            LocalTime outboundArrival = outboundDeparture.plusMinutes(travelMinutes);
+            LocalTime inboundDeparture = outboundArrival.plusHours(2);
+            LocalTime inboundArrival = inboundDeparture.plusMinutes(travelMinutes);
+
+            createScheduleIfMissing(bus, outbound, travelDate, outboundDeparture, outboundArrival, fare);
+            createScheduleIfMissing(bus, inbound, travelDate, inboundDeparture, inboundArrival, fare);
+        }
+    }
+
+    private Route getOrCreateRoute(String source, String destination, int distanceKm, boolean tourismRoute) {
+        return routeRepository
+                .findBySourceIgnoreCaseAndDestinationIgnoreCase(source, destination)
+                .map(route -> {
+                    route.setActive(true);
+                    route.setTourismRoute(tourismRoute);
+                    return routeRepository.save(route);
+                })
+                .orElseGet(() -> {
+                    Route route = new Route();
+                    route.setSource(source);
+                    route.setDestination(destination);
+                    route.setDistanceKm(distanceKm);
+                    route.setActive(true);
+                    route.setTourismRoute(tourismRoute);
+                    return routeRepository.save(route);
+                });
+    }
+
+    private Bus getOrCreateBus(String busNumber, BusType busType, int totalSeats) {
+        plannedBusNumbers.add(busNumber.toUpperCase());
+        return busRepository
+                .findByBusNumberIgnoreCase(busNumber)
+                .map(bus -> {
+                    bus.setBusType(busType);
+                    bus.setTotalSeats(totalSeats);
+                    bus.setActive(true);
+                    return busRepository.save(bus);
+                })
+                .orElseGet(() -> {
+                    Bus bus = new Bus();
+                    bus.setBusNumber(busNumber);
+                    bus.setBusType(busType);
+                    bus.setTotalSeats(totalSeats);
+                    bus.setActive(true);
+                    return busRepository.save(bus);
+                });
+    }
+
+    private void createScheduleIfMissing(
+            Bus bus,
+            Route route,
+            LocalDate travelDate,
+            LocalTime departureTime,
+            LocalTime arrivalTime,
+            BigDecimal fare) {
+        if (tripScheduleRepository.existsByBusIdAndTravelDateAndRouteIdAndDepartureTime(
+                bus.getId(), travelDate, route.getId(), departureTime)) {
+            return;
+        }
+
+        TripSchedule schedule = new TripSchedule();
+        schedule.setBus(bus);
+        schedule.setRoute(route);
+        schedule.setTravelDate(travelDate);
+        schedule.setDepartureTime(departureTime);
+        schedule.setArrivalTime(arrivalTime);
+        schedule.setBaseFare(fare);
+        schedule.setActive(true);
+        tripScheduleRepository.save(schedule);
+    }
+
+    private void deactivateLegacyFleet() {
+        for (Bus bus : busRepository.findAll()) {
+            String normalized = bus.getBusNumber() == null ? "" : bus.getBusNumber().toUpperCase();
+            if (!plannedBusNumbers.contains(normalized) && Boolean.TRUE.equals(bus.getActive())) {
+                bus.setActive(false);
+                busRepository.save(bus);
+                deactivateSchedulesForBus(bus.getId());
+            }
+        }
+    }
+
+    private void deactivateSchedulesForBus(Long busId) {
+        for (TripSchedule schedule : tripScheduleRepository.findByBusIdAndActiveTrue(busId)) {
+            schedule.setActive(false);
+            tripScheduleRepository.save(schedule);
+        }
+    }
+}
