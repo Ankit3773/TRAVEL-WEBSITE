@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NARAYAN TRAVELS</title>
+  <title>NARAYAN TRAVELS - Bus Results</title>
   <link rel="icon" type="image/png" href="/logo-narayan-travels.png?v=2" />
   <link rel="stylesheet" href="/styles.css?v=20260311-3" />
 </head>
-<body data-page="home">
+<body data-page="results">
   <div class="bg-shape bg-shape-1"></div>
   <div class="bg-shape bg-shape-2"></div>
   <div class="bg-shape bg-shape-3"></div>
@@ -20,9 +20,9 @@
         </div>
         <div class="brand-copy">
           <p class="eyebrow">Narayan Travels</p>
-          <h1>Book Reliable Bus Travel Across Bihar</h1>
-          <p class="subtitle">Search routes, select seats, and manage your trips through one clean booking experience.</p>
-          <p class="hero-note">Comfortable journeys, transparent fares, and faster account access.</p>
+          <h1>Review Bus Details and Fare on a Separate Page</h1>
+          <p class="subtitle">Your selected search opens here with buses, fare, timing, and the next booking steps.</p>
+          <p class="hero-note">Use the back button below any time to return to the home search page.</p>
         </div>
       </div>
       <div class="hero-actions">
@@ -152,14 +152,14 @@
       <div class="workflow-head">
         <div>
           <p class="section-tag">Customer Journey</p>
-          <h2>Book in five clear steps</h2>
+          <h2>Search first, then review buses here</h2>
         </div>
-        <div id="flow-status" class="flow-status">Start by searching a route.</div>
+        <div id="flow-status" class="flow-status">Loading bus results...</div>
       </div>
 
       <ol class="stepper" id="stepper">
-        <li data-step="search" class="active"><span>1</span><strong>Search</strong></li>
-        <li data-step="buses"><span>2</span><strong>Bus List</strong></li>
+        <li data-step="search"><span>1</span><strong>Search</strong></li>
+        <li data-step="buses" class="active"><span>2</span><strong>Bus List</strong></li>
         <li data-step="seats"><span>3</span><strong>Seat Selection</strong></li>
         <li data-step="payment"><span>4</span><strong>Payment</strong></li>
         <li data-step="confirmation"><span>5</span><strong>Confirmation</strong></li>
@@ -167,7 +167,7 @@
 
       <div class="booking-content-grid">
         <div class="booking-main">
-          <section id="view-search" class="flow-view active">
+          <section id="view-search" class="flow-view hidden">
             <div class="view-copy">
               <p class="section-tag">Home Page</p>
               <h3>Find the next bus</h3>
@@ -264,15 +264,32 @@
             <div id="search-status" class="summary"></div>
           </section>
 
-          <section id="view-buses" class="flow-view hidden">
+          <section id="view-buses" class="flow-view active">
             <div class="view-header-row">
               <div>
-                <p class="section-tag">Bus List Page</p>
-                <h3>Available buses</h3>
-                <p id="bus-list-copy" class="hint">Pick one schedule to open seat selection.</p>
+                <p class="section-tag">Bus Results Page</p>
+                <h3>Available buses, fare, and schedule details</h3>
+                <p id="bus-list-copy" class="hint">Loading your selected route details.</p>
               </div>
-              <button type="button" id="back-to-search" class="ghost-btn">Back to search</button>
+              <button type="button" id="back-to-search" class="ghost-btn">Modify search</button>
             </div>
+            <div class="results-search-shell">
+              <div class="results-search-card">
+                <div class="results-search-segment">
+                  <span class="results-search-label">From -> To</span>
+                  <strong id="bus-results-route">Loading route</strong>
+                </div>
+                <div class="results-search-segment">
+                  <span class="results-search-label">Date of journey</span>
+                  <strong id="bus-results-date">Loading date</strong>
+                </div>
+                <div class="results-search-segment results-search-segment-wide">
+                  <span class="results-search-label">Search details</span>
+                  <strong id="bus-results-meta">Loading matching buses and fare details.</strong>
+                </div>
+              </div>
+            </div>
+            <div id="bus-results-status" class="summary"></div>
             <div id="schedule-list" class="bus-list-grid"></div>
           </section>
 
@@ -399,8 +416,8 @@
           <div class="side-card">
             <p class="section-tag">Flow Notes</p>
             <ul class="notes-list">
-              <li>Search results become the dedicated bus list page.</li>
-              <li>Seat view auto-refreshes while active for near-real-time availability.</li>
+              <li>This page opens only after the user submits a search from the home page.</li>
+              <li>Bus fare, date, time, and schedule options are grouped here before seat selection.</li>
               <li>ONLINE goes through lock, checkout, and verify before confirmation.</li>
             </ul>
           </div>

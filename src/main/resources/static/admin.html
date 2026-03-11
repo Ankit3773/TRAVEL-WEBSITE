@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NARAYAN TRAVELS ADMIN</title>
+  <link rel="icon" type="image/png" href="/logo-narayan-travels.png?v=2" />
+  <link rel="stylesheet" href="/styles.css?v=20260311-3" />
+</head>
+<body>
+  <div class="bg-shape bg-shape-1"></div>
+  <div class="bg-shape bg-shape-2"></div>
+  <div class="bg-shape bg-shape-3"></div>
+
+  <header class="hero-shell">
+    <div class="hero-bar">
+      <div class="brand-lockup">
+        <img class="site-logo" src="/logo-narayan-travels.png?v=2" alt="Narayan Travels logo" />
+        <div>
+          <p class="eyebrow">Narayan Travels</p>
+          <h1>Admin Console</h1>
+          <p class="subtitle">Manage bookings, routes, buses, schedules, and fare updates from one dedicated page.</p>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <div class="admin-hero-actions">
+          <a class="ghost-btn admin-link-btn" href="/index.html">Open Customer Site</a>
+        </div>
+        <div class="hero-badges">
+          <span class="hero-pill">Separate admin page</span>
+          <span class="hero-pill">Route and fare editing</span>
+          <span class="hero-pill">Booking controls</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout admin-layout">
+    <section class="card full-width">
+      <div class="section-head section-head-split">
+        <div>
+          <p class="section-tag">Access</p>
+          <h2>Admin login</h2>
+          <p class="hint">This page uses the same account system as the booking app, but only admins can open the console.</p>
+        </div>
+        <div class="admin-access-actions">
+          <div id="admin-auth-summary" class="summary account-status-summary">Not logged in.</div>
+          <button id="admin-logout-btn" type="button" class="secondary hidden">Logout</button>
+        </div>
+      </div>
+
+      <div class="admin-access-grid">
+        <form id="admin-login-form" class="form admin-auth-form">
+          <h3>Login</h3>
+          <label>Email<input id="admin-login-email" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="admin-login-password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit">Login as admin</button>
+        </form>
+
+        <div class="admin-lock-card">
+          <p class="section-tag">Access State</p>
+          <h3 id="admin-access-title">Console locked</h3>
+          <p id="admin-access-copy" class="hint">Login with an admin account to manage routes, bookings, buses, schedules, and fares.</p>
+          <div id="admin-access-status" class="summary muted-summary">Waiting for admin authentication.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin-console" class="full-width admin-console hidden">
+      <section class="card full-width">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Overview</p>
+            <h2>Operational metrics</h2>
+          </div>
+        </div>
+        <div id="admin-metrics" class="metrics-grid"></div>
+      </section>
+
+      <section class="card full-width">
+        <div class="section-head section-head-split section-head-tight">
+          <div>
+            <p class="section-tag">Booking Trends</p>
+            <h2>Recent booking activity</h2>
+          </div>
+          <div class="section-actions">
+            <label class="inline-control">Window
+              <select id="admin-trend-range">
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+            </label>
+            <button id="admin-trends-refresh" type="button" class="secondary compact-btn">Refresh</button>
+          </div>
+        </div>
+        <div id="admin-trend-summary" class="trend-summary-grid"></div>
+        <div id="admin-trend-chart" class="trend-chart"></div>
+      </section>
+
+      <section class="card full-width">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Operations</p>
+            <h2>Create or update data</h2>
+          </div>
+        </div>
+
+        <div class="admin-grid">
+          <form id="admin-route-form" class="form admin-form">
+            <input id="admin-route-id" type="hidden" />
+            <h3>Route</h3>
+            <label>Source<input id="admin-route-source" type="text" required /></label>
+            <label>Destination<input id="admin-route-destination" type="text" required /></label>
+            <label>Distance KM<input id="admin-route-distance" type="number" min="1" required /></label>
+            <label class="checkbox-field">
+              <input id="admin-route-tourism" type="checkbox" />
+              <span>Tourism route</span>
+            </label>
+            <div class="form-actions-row">
+              <button id="admin-route-submit" type="submit">Save route</button>
+              <button id="admin-route-cancel" type="button" class="ghost-btn hidden">Cancel edit</button>
+            </div>
+            <div id="admin-route-status" class="summary muted-summary">Create a new route or edit an existing one.</div>
+          </form>
+
+          <form id="admin-bus-form" class="form admin-form">
+            <input id="admin-bus-id" type="hidden" />
+            <h3>Bus</h3>
+            <label>Bus Number<input id="admin-bus-number" type="text" required /></label>
+            <label>Bus Type
+              <select id="admin-bus-type">
+                <option value="NON_AC">NON_AC</option>
+                <option value="AC">AC</option>
+                <option value="SEATER">SEATER</option>
+                <option value="SLEEPER">SLEEPER</option>
+              </select>
+            </label>
+            <label>Total Seats<input id="admin-bus-seats" type="number" min="1" required /></label>
+            <div class="form-actions-row">
+              <button id="admin-bus-submit" type="submit">Save bus</button>
+              <button id="admin-bus-cancel" type="button" class="ghost-btn hidden">Cancel edit</button>
+            </div>
+            <div id="admin-bus-status" class="summary muted-summary">Create a new bus or edit an existing one.</div>
+          </form>
+
+          <form id="admin-schedule-form" class="form admin-form">
+            <input id="admin-schedule-id" type="hidden" />
+            <h3>Schedule and Fare</h3>
+            <label>Route
+              <select id="admin-sch-route-id" required></select>
+            </label>
+            <label>Bus
+              <select id="admin-sch-bus-id" required></select>
+            </label>
+            <label>Date<input id="admin-sch-date" type="date" required /></label>
+            <label>Departure<input id="admin-sch-departure" type="time" required /></label>
+            <label>Arrival<input id="admin-sch-arrival" type="time" required /></label>
+            <label>Base Fare (optional override)<input id="admin-sch-fare" type="number" min="0" step="0.01" placeholder="Auto-calculate if empty" /></label>
+            <div class="form-actions-row">
+              <button id="admin-schedule-submit" type="submit">Save schedule</button>
+              <button id="admin-schedule-cancel" type="button" class="ghost-btn hidden">Cancel edit</button>
+            </div>
+            <div id="admin-schedule-status" class="summary muted-summary">Leave fare blank to use the automatic route-based fare.</div>
+          </form>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head section-head-split section-head-tight">
+          <div>
+            <p class="section-tag">Routes</p>
+            <h2>Route registry</h2>
+          </div>
+          <button id="admin-routes-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
+        <div id="admin-route-list" class="manager-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head section-head-split section-head-tight">
+          <div>
+            <p class="section-tag">Fleet</p>
+            <h2>Bus registry</h2>
+          </div>
+          <button id="admin-buses-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
+        <div id="admin-bus-list" class="manager-list"></div>
+      </section>
+
+      <section class="card full-width">
+        <div class="section-head section-head-split section-head-tight">
+          <div>
+            <p class="section-tag">Schedules</p>
+            <h2>Schedule and fare registry</h2>
+          </div>
+          <button id="admin-schedules-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
+        <div id="admin-schedule-list" class="manager-list"></div>
+      </section>
+
+      <section class="card full-width">
+        <div class="section-head section-head-split section-head-tight">
+          <div>
+            <p class="section-tag">Bookings</p>
+            <h2>Booking management</h2>
+          </div>
+          <div class="section-actions">
+            <label class="inline-control">Status
+              <select id="admin-bookings-status">
+                <option value="">ALL</option>
+                <option value="BOOKED">BOOKED</option>
+                <option value="CANCELLED">CANCELLED</option>
+                <option value="LOCKED">LOCKED</option>
+              </select>
+            </label>
+            <button id="admin-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
+          </div>
+        </div>
+        <div id="admin-bookings-summary" class="summary muted-summary">Booking data will appear here.</div>
+        <div id="admin-bookings-status-text" class="summary hidden"></div>
+        <div id="admin-bookings" class="list"></div>
+        <div id="admin-bookings-pagination" class="pagination-bar hidden"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/config.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

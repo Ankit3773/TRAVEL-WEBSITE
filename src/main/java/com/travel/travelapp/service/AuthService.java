@@ -17,10 +17,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +31,8 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final GoogleIdentityService googleIdentityService;
 
     @Transactional
     public AuthResponse registerCustomer(RegisterRequest request) {
@@ -55,12 +52,36 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                request.getEmail().trim().toLowerCase(), request.getPassword()));
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        AppUser user = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
-        UserDetails principal = (UserDetails) authentication.getPrincipal();
-        AppUser user = userRepository.findByEmailIgnoreCase(principal.getUsername())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!Boolean.TRUE.equals(user.getActive())
+                || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
+        return buildAuthResponse(user);
+    }
+
+    @Transactional
+    public AuthResponse authenticateWithGoogle(String credential) {
+        GoogleIdentityService.GoogleProfile profile = googleIdentityService.verifyCredential(credential);
+
+        AppUser user = userRepository.findByEmailIgnoreCase(profile.email())
+                .orElseGet(() -> {
+                    AppUser newUser = new AppUser();
+                    newUser.setName(resolveGoogleDisplayName(profile));
+                    newUser.setEmail(profile.email());
+                    newUser.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+                    newUser.setRole(UserRole.CUSTOMER);
+                    newUser.setActive(true);
+                    return userRepository.save(newUser);
+                });
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new BadCredentialsException("Account is inactive");
+        }
 
         return buildAuthResponse(user);
     }
@@ -117,5 +138,18 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build();
+    }
+
+    private String resolveGoogleDisplayName(GoogleIdentityService.GoogleProfile profile) {
+        if (profile.name() != null && !profile.name().isBlank()) {
+            return profile.name().trim();
+        }
+
+        int atIndex = profile.email().indexOf('@');
+        if (atIndex > 0) {
+            return profile.email().substring(0, atIndex);
+        }
+
+        return "Google User";
     }
 }

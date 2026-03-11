@@ -19,4 +19,6 @@ public class CreateRouteRequest {
     @NotNull
     @Min(1)
     private Integer distanceKm;
+
+    private Boolean tourismRoute;
 }

@@ -48,6 +48,9 @@ public class TripSchedule {
     private BigDecimal baseFare;
 
     @Column(nullable = false)
+    private Boolean fareOverridden = false;
+
+    @Column(nullable = false)
     private Boolean active = true;
 
     @OneToMany(mappedBy = "tripSchedule")

@@ -276,7 +276,7 @@ class BookingFlowIntegrationTest {
 
         Map<String, Object> verifyPayload = new HashMap<>();
         verifyPayload.put("paymentSessionId", paymentSessionId);
-        verifyPayload.put("gatewayPaymentReference", "mock-payment-123");
+        verifyPayload.put("paymentId", "mock-payment-123");
 
         mockMvc.perform(post("/api/bookings/locks/{bookingId}/payments/verify", bookingId)
                         .header("Authorization", "Bearer " + customerToken)
@@ -725,7 +725,7 @@ class BookingFlowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(schedulePayload)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.baseFare").value(425.0))
+                .andExpect(jsonPath("$.baseFare").value(260.0))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -746,7 +746,7 @@ class BookingFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.departureTime").value("10:00:00"))
                 .andExpect(jsonPath("$.arrivalTime").value("12:30:00"))
-                .andExpect(jsonPath("$.baseFare").value(425.0));
+                .andExpect(jsonPath("$.baseFare").value(280.0));
 
         mockMvc.perform(get("/api/admin/schedules")
                         .header("Authorization", "Bearer " + adminToken))

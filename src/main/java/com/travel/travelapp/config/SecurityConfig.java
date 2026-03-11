@@ -1,11 +1,13 @@
 package com.travel.travelapp.config;
 
 import com.travel.travelapp.security.JwtAuthFilter;
+import com.travel.travelapp.security.AppUserDetailsService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -13,6 +15,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -28,6 +31,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final AppUserDetailsService appUserDetailsService;
 
     @Value("#{'${app.frontend.allowed-origins:http://localhost:8080,http://127.0.0.1:8080}'.split(',')}")
     private List<String> allowedOrigins;
@@ -40,9 +44,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
+                                "/login.html",
                                 "/index.html",
+                                "/results.html",
+                                "/admin.html",
                                 "/styles.css",
                                 "/app.js",
+                                "/login.js",
+                                "/admin.js",
                                 "/config.js",
                                 "/logo-narayan-travels.png",
                                 "/error")
@@ -62,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/bookings/**").hasAnyRole("ADMIN", "CUSTOMER")
                         .anyRequest()
                         .authenticated())
+                .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -85,6 +95,13 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(appUserDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
     }
 
     @Bean

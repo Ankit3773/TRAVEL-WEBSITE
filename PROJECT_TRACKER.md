@@ -1,6 +1,6 @@
 # NARAYAN TRAVELS - Project Tracker
 
-Last updated: 2026-03-10 (Stage 1 to Stage 9 completed in repo scope)
+Last updated: 2026-03-11 (Stage 1 to Stage 9 completed; local workflow, auth, and UI enhancements added)
 
 ## 1) Project Vision
 Build an online bus booking system for Bihar routes with:
@@ -10,15 +10,21 @@ Build an online bus booking system for Bihar routes with:
 - Authentication and secure APIs
 
 ## 2) Current Status Snapshot
-- Overall progress: Repo scope complete, production execution still manual
+- Overall progress: Repo scope complete, local workflow hardened, production execution still manual
 - Stack currently implemented:
   - Backend: Spring Boot (Java 17)
-  - Database: Supabase PostgreSQL
-  - Frontend: Static HTML/CSS/JS served by backend with Stage 6 multi-step booking flow
-- Local status: Running on `http://localhost:8080`
+  - Database: H2 local profile by default, Supabase PostgreSQL for remote/prod
+  - Frontend: Static HTML/CSS/JS served by backend with dedicated home, results, login, and admin pages
+- Local status:
+  - `./run-local.sh` starts the `local` profile on `http://localhost:8080`
+  - `LOCAL_DB_MODE=remote ./run-local.sh` keeps the remote PostgreSQL option for Supabase-backed runs
+  - Existing local instance verified during this refresh:
+    - `GET /actuator/health` -> `200`
+    - `GET /config.js` -> `200`
+    - `GET /api/routes` -> `200`
 - Checklist status (48-step plan):
-  - Done: `46`
-  - Partial: `2`
+  - Done: `48`
+  - Partial: `0`
   - Pending: `0`
   - Verification-only: `0`
 
@@ -55,8 +61,11 @@ Build an online bus booking system for Bihar routes with:
 - Auth endpoints:
   - `POST /api/auth/register`
   - `POST /api/auth/login`
+  - `POST /api/auth/google`
   - `POST /api/auth/forgot-password`
   - `POST /api/auth/reset-password`
+- Login flow now validates against stored password hashes through the app user details service
+- Google ID token verification flow can create/sign in customer accounts when `APP_GOOGLE_CLIENT_ID` is configured
 - Admin bootstrap via environment variables
 
 ### 3.5 Booking Core
@@ -73,6 +82,9 @@ Build an online bus booking system for Bihar routes with:
 - Create route, bus, schedule
 - Admin bookings list and paged list
 - Admin metrics and booking trends API
+- Route create/update now supports the `tourismRoute` flag
+- Schedule create/update now supports optional manual fare override
+- Route and bus edits refresh non-overridden schedule fares automatically
 
 ### 3.7 UI (Current Frontend)
 - Stage 6 five-step booking shell:
@@ -81,12 +93,19 @@ Build an online bus booking system for Bihar routes with:
   - Seat selection page
   - Payment page
   - Booking confirmation page
+- Dedicated static pages now separate key workflows:
+  - `/` for home/search
+  - `/results.html` for bus results and booking flow
+  - `/login.html` for customer account access
+  - `/admin.html` for admin-only operations
 - Guided stepper with journey sidebar summary
 - Search schedules UI
 - Bus comparison cards UI
 - Seat selection UI with auto-refresh polling
 - Booking form UI
-- Admin panel UI (create + metrics + bookings)
+- Customer account menu with login, signup, reset, logout, and optional Google sign-in
+- Payment step expanded with payment badges, session details, and timeline state
+- Admin panel UI (create + metrics + bookings) on a separate dedicated page
 - Tourism section UI
 - Forgot/reset password UI
 - Booking history console with status filter and pagination
@@ -99,12 +118,23 @@ Build an online bus booking system for Bihar routes with:
 - Readiness probe now reports traffic acceptance after app startup
 - Prometheus metrics endpoint available
 - Request correlation ID logging (`X-Request-Id`) implemented
+- Runtime frontend config is exposed through `/config.js` for API base URL and Google client ID injection
+- Deployment runbook now includes `DEPLOYMENT_STEPS.md` for the operator sequence
 
 ### 3.9 Test Status
-- Latest run: `./mvnw -q test` (2026-03-10)
-- Result: pass
-  - `BookingFlowIntegrationTest`: 21/21 passed
-  - `TravelappApplicationTests`: 2/2 passed
+- Latest run: `./mvnw -q test` (2026-03-11)
+- Result: partial / failing
+  - Overall: `24/25` tests passed
+  - `BookingFlowIntegrationTest`: `21/21` passed
+  - `FleetSeedConfigTest`: `1/1` passed
+  - `TravelappApplicationTests`: `2/3` passed
+  - Current failing assertion:
+    - `seededChapraSchedulesShouldBeThreeHoursApart`
+    - observed result: no matching seeded schedules returned in the test profile query
+- Runtime smoke verification on the already-running local app passed:
+  - `GET /actuator/health`
+  - `GET /config.js`
+  - `GET /api/routes`
 
 ### 3.10 Stage 1 Completion (2026-03-06)
 - Project stack finalized for current delivery:
@@ -288,12 +318,27 @@ Build an online bus booking system for Bihar routes with:
   - app publishes `REFUSING_TRAFFIC` on shutdown
 - Added readiness integration verification for `/actuator/health/readiness`
 
+### 3.19 Post-Stage 9 Local Delivery Updates (2026-03-11)
+- Added a default local developer profile backed by file-based H2 under `.data/`
+- `run-local.sh` now supports two modes:
+  - default local H2 boot
+  - `LOCAL_DB_MODE=remote` for Supabase/PostgreSQL-backed local runs
+- Added local customer bootstrap configuration for easier end-to-end testing in the `local` profile
+- Added Google auth DTO/service/controller wiring using Google ID token verification
+- Added frontend runtime config controller so static pages can consume:
+  - `APP_FRONTEND_API_BASE_URL`
+  - `APP_GOOGLE_CLIENT_ID`
+- Refined seeded trip schedule spacing so routes such as Patna <-> Chapra stay evenly distributed
+- Added `fareOverridden` support on schedules so manual admin fares are preserved during route/bus fare refreshes
+- Payment verification now accepts `paymentId` while remaining backward-compatible with `gatewayPaymentReference`
+
 ## 4) Stage-wise Checklist Audit (What Is Left)
 
 ### Stage 1 - Project Setup
 - Left: 0 steps
 - Notes:
   - Stage 1 setup baseline is complete
+  - Local startup is now simplified through the default H2-backed `local` profile
   - React and AWS implementation work continues in later planned stages
 
 ### Stage 2 - Backend Structure
@@ -305,6 +350,7 @@ Build an online bus booking system for Bihar routes with:
 - Left: 0 steps
 - Notes:
   - Admin management APIs and service logic are implemented and tested
+  - Tourism-route control and optional fare override management are now exposed in the admin flow
 
 ### Stage 4 - Customer Booking System
 - Left: 0 steps
@@ -327,17 +373,21 @@ Build an online bus booking system for Bihar routes with:
   - Stage 6 delivery is complete in the current static frontend architecture
   - React migration is no longer treated as a blocker for the booking workflow
   - Seat availability is delivered as near-real-time polling rather than websocket push
+  - Customer and admin workflows now have dedicated standalone pages instead of a single mixed shell
 
 ### Stage 7 - Testing
 - Left: 0 steps
 - Notes:
   - Booking flow, seat locking, cancellation flow, and admin operations are now covered in integration tests
   - Current scope relies on backend integration tests plus live UI verification on localhost
+  - Seeded schedule timing assertions were added for the Patna <-> Chapra route spacing
+  - Current follow-up: one `TravelappApplicationTests` seed assertion is failing under the test profile and should be stabilized
 
 ### Stage 8 - Deployment
 - Left: 0 repo steps
 - Notes:
   - Deployment automation and runbook are now in place
+  - Production profile disables the readiness probe group for the EC2/nginx health-check path
   - Manual operator prerequisites still apply:
     - create AWS account
     - create EC2/S3/Vercel resources
@@ -350,16 +400,19 @@ Build an online bus booking system for Bihar routes with:
   - Cancellation API is implemented and wired in the customer console
   - Admin booking dashboard includes metrics, trends, monitoring, and paged bookings
   - Authentication and role-based API protection remain enforced
+  - Post-completion polish added separate login/results/admin pages plus runtime frontend config support
 
 ## 5) API Coverage (Current)
 
 ### Auth
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/google`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
 
 ### Public
+- `GET /config.js`
 - `GET /api/routes`
 - `GET /api/routes/tourism`
 - `GET /api/buses`
@@ -398,24 +451,39 @@ Build an online bus booking system for Bihar routes with:
 - `GET /api/admin/metrics/trends?fromDate=&toDate=`
 
 ## 6) Next Recommended Milestone
-Execute the remaining manual production steps:
-1. Provision AWS resources (EC2 and optionally S3/CloudFront)
-2. Run `deploy/aws/ec2/publish-backend.sh` against the target EC2 host
-3. Export frontend with `deploy/frontend/export-static-site.sh` if hosting separately
-4. Point DNS/domain records and update `APP_FRONTEND_ALLOWED_ORIGINS`
+Stabilize local verification before the production pass:
+1. Fix the failing `seededChapraSchedulesShouldBeThreeHoursApart` test under the test profile
+2. Re-run `./mvnw -q test` until the suite is fully green
+3. Provision a Google OAuth web client and set `APP_GOOGLE_CLIENT_ID`
+4. Provision AWS resources (EC2 and optionally S3/CloudFront)
+5. Run `deploy/aws/ec2/publish-backend.sh` against the target EC2 host
+6. Export frontend with `deploy/frontend/export-static-site.sh` if hosting separately
+7. Point DNS/domain records and update `APP_FRONTEND_ALLOWED_ORIGINS`
 
 ## 7) Local Runbook
 ```bash
 cd /Users/ankitkumar/Downloads/travelapp
 
 cp .env.example .env
-# Fill DB_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET, APP_ADMIN_EMAIL, APP_ADMIN_PASSWORD
+# Fill at least JWT_SECRET, APP_ADMIN_EMAIL, APP_ADMIN_PASSWORD
+# Optional for Google sign-in: APP_GOOGLE_CLIENT_ID
 
 ./run-local.sh
+```
+
+Remote DB mode (optional):
+```bash
+cd /Users/ankitkumar/Downloads/travelapp
+
+cp .env.example .env
+# Fill DB_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET, APP_ADMIN_EMAIL, APP_ADMIN_PASSWORD
+
+LOCAL_DB_MODE=remote ./run-local.sh
 ```
 
 Health check:
 ```bash
 curl -i http://localhost:8080/actuator/health
+curl -i http://localhost:8080/config.js
 curl -i http://localhost:8080/api/routes
 ```

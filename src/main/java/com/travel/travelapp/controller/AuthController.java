@@ -3,6 +3,7 @@ package com.travel.travelapp.controller;
 import com.travel.travelapp.dto.AuthResponse;
 import com.travel.travelapp.dto.ForgotPasswordRequest;
 import com.travel.travelapp.dto.ForgotPasswordResponse;
+import com.travel.travelapp.dto.GoogleAuthRequest;
 import com.travel.travelapp.dto.LoginRequest;
 import com.travel.travelapp.dto.MessageResponse;
 import com.travel.travelapp.dto.RegisterRequest;
@@ -35,6 +36,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/google")
+    public AuthResponse google(@Valid @RequestBody GoogleAuthRequest request) {
+        return authService.authenticateWithGoogle(request.getCredential());
     }
 
     @PostMapping("/forgot-password")

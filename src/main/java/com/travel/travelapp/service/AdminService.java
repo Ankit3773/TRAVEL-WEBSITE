@@ -82,7 +82,7 @@ public class AdminService {
         route.setDestination(destination);
         route.setDistanceKm(request.getDistanceKm());
         route.setActive(true);
-        route.setTourismRoute(false);
+        route.setTourismRoute(Boolean.TRUE.equals(request.getTourismRoute()));
         Route savedRoute = routeRepository.save(route);
         refreshScheduleFaresForRoute(savedRoute);
         return savedRoute;
@@ -142,6 +142,7 @@ public class AdminService {
         bus.setActive(true);
         Bus savedBus = busRepository.save(bus);
         syncSeatsForBus(savedBus);
+        refreshScheduleFaresForBus(savedBus);
         return savedBus;
     }
 
@@ -164,6 +165,7 @@ public class AdminService {
         bus.setActive(true);
         Bus savedBus = busRepository.save(bus);
         syncSeatsForBus(savedBus);
+        refreshScheduleFaresForBus(savedBus);
         return savedBus;
     }
 
@@ -207,7 +209,8 @@ public class AdminService {
         schedule.setTravelDate(request.getTravelDate());
         schedule.setDepartureTime(request.getDepartureTime());
         schedule.setArrivalTime(request.getArrivalTime());
-        schedule.setBaseFare(FarePolicy.fareFor(route, bus));
+        schedule.setBaseFare(resolveScheduleFare(route, bus, request.getBaseFare()));
+        schedule.setFareOverridden(request.getBaseFare() != null);
         schedule.setActive(true);
 
         return tripScheduleRepository.save(schedule);
@@ -237,7 +240,8 @@ public class AdminService {
         schedule.setTravelDate(request.getTravelDate());
         schedule.setDepartureTime(request.getDepartureTime());
         schedule.setArrivalTime(request.getArrivalTime());
-        schedule.setBaseFare(FarePolicy.fareFor(route, bus));
+        schedule.setBaseFare(resolveScheduleFare(route, bus, request.getBaseFare()));
+        schedule.setFareOverridden(request.getBaseFare() != null);
         schedule.setActive(true);
 
         return tripScheduleRepository.save(schedule);
@@ -362,9 +366,29 @@ public class AdminService {
         }
     }
 
+    private BigDecimal resolveScheduleFare(Route route, Bus bus, BigDecimal requestedFare) {
+        if (requestedFare != null) {
+            return requestedFare;
+        }
+        return FarePolicy.fareFor(route, bus);
+    }
+
     private void refreshScheduleFaresForRoute(Route route) {
         for (TripSchedule schedule : tripScheduleRepository.findByRouteIdAndActiveTrue(route.getId())) {
+            if (Boolean.TRUE.equals(schedule.getFareOverridden())) {
+                continue;
+            }
             schedule.setBaseFare(FarePolicy.fareFor(route, schedule.getBus()));
+            tripScheduleRepository.save(schedule);
+        }
+    }
+
+    private void refreshScheduleFaresForBus(Bus bus) {
+        for (TripSchedule schedule : tripScheduleRepository.findByBusIdAndActiveTrue(bus.getId())) {
+            if (Boolean.TRUE.equals(schedule.getFareOverridden())) {
+                continue;
+            }
+            schedule.setBaseFare(FarePolicy.fareFor(schedule.getRoute(), bus));
             tripScheduleRepository.save(schedule);
         }
     }

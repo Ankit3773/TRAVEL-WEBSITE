@@ -9,7 +9,7 @@ WorkingDirectory=/opt/narayan-travels
 ExecStart=/opt/narayan-travels/run-prod.sh
 Restart=always
 RestartSec=10
-Environment=JAVA_OPTS=-Xms256m -Xmx768m
+Environment="JAVA_OPTS=-Xms256m -Xmx768m"
 
 [Install]
 WantedBy=multi-user.target

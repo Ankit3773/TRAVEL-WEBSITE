@@ -2,6 +2,8 @@ const STEP_ORDER = ['search', 'buses', 'seats', 'payment', 'confirmation'];
 const POLL_INTERVAL_MS = 10000;
 const APP_CONFIG = window.NARAYAN_TRAVELS_CONFIG || {};
 const API_BASE_URL = normalizeBaseUrl(APP_CONFIG.apiBaseUrl || '');
+const PAGE_MODE = document.body.dataset.page || 'home';
+const RESULTS_PAGE_PATH = '/results.html';
 
 const elements = {
   routes: document.getElementById('route-list'),
@@ -14,6 +16,16 @@ const elements = {
   searchForm: document.getElementById('search-form'),
   searchStatus: document.getElementById('search-status'),
   authStatus: document.getElementById('auth-status'),
+  accountMenuBtn: document.getElementById('account-menu-btn'),
+  accountMenu: document.getElementById('account-menu'),
+  accountPanelTabs: Array.from(document.querySelectorAll('[data-account-panel-tab]')),
+  accountPanels: Array.from(document.querySelectorAll('[data-account-panel]')),
+  guestOnlyBlocks: Array.from(document.querySelectorAll('.auth-guest-only')),
+  userOnlyBlocks: Array.from(document.querySelectorAll('.auth-user-only')),
+  accountAdminLink: document.getElementById('account-admin-link'),
+  googleAuthBlock: document.getElementById('google-auth-block'),
+  googleSigninButton: document.getElementById('google-signin-button'),
+  googleAuthStatus: document.getElementById('google-auth-status'),
   forgotPanel: document.getElementById('forgot-password-panel'),
   forgotStatus: document.getElementById('forgot-status'),
   bookingForm: document.getElementById('booking-form'),
@@ -46,13 +58,35 @@ const elements = {
   stepper: document.getElementById('stepper'),
   flowStatus: document.getElementById('flow-status'),
   busListCopy: document.getElementById('bus-list-copy'),
+  busResultsRoute: document.getElementById('bus-results-route'),
+  busResultsDate: document.getElementById('bus-results-date'),
+  busResultsMeta: document.getElementById('bus-results-meta'),
+  busResultsStatus: document.getElementById('bus-results-status'),
   journeySummary: document.getElementById('journey-summary'),
   paymentSummary: document.getElementById('payment-summary'),
+  paymentMethodTitle: document.getElementById('payment-method-title'),
+  paymentModeBadge: document.getElementById('payment-mode-badge'),
+  paymentGatewayBadge: document.getElementById('payment-gateway-badge'),
+  paymentStageBadge: document.getElementById('payment-stage-badge'),
+  paymentMethodSummary: document.getElementById('payment-method-summary'),
+  paymentTimeline: document.getElementById('payment-timeline'),
+  paymentSessionPanel: document.getElementById('payment-session-panel'),
+  paymentSessionId: document.getElementById('payment-session-id'),
+  paymentSessionAmount: document.getElementById('payment-session-amount'),
+  paymentSessionExpiry: document.getElementById('payment-session-expiry'),
   paymentActionTitle: document.getElementById('payment-action-title'),
   paymentActionCopy: document.getElementById('payment-action-copy'),
+  paymentIdField: document.getElementById('payment-id-field'),
+  paymentIdLabel: document.getElementById('payment-id-label'),
+  paymentIdHint: document.getElementById('payment-id-hint'),
+  paymentIdInput: document.getElementById('payment-id-input'),
   paymentActionBtn: document.getElementById('payment-action-btn'),
   paymentStatus: document.getElementById('payment-status'),
   confirmationCard: document.getElementById('confirmation-card'),
+  workspaceTabs: document.getElementById('workspace-tabs'),
+  workspaceHint: document.getElementById('workspace-hint'),
+  workspaceTabButtons: Array.from(document.querySelectorAll('[data-workspace-tab]')),
+  workspacePanels: Array.from(document.querySelectorAll('[data-workspace-panel]')),
   views: {
     search: document.getElementById('view-search'),
     buses: document.getElementById('view-buses'),
@@ -84,8 +118,16 @@ const state = {
     page: 0,
     size: 6
   },
-  adminTrendRangeDays: 7
+  adminTrendRangeDays: 7,
+  workspacePanel: 'routes',
+  accountPanel: 'login',
+  googleInitialized: false,
+  googleInitAttempts: 0
 };
+
+function isResultsPage() {
+  return PAGE_MODE === 'results';
+}
 
 function normalizeBaseUrl(value) {
   if (!value) return '';
@@ -149,6 +191,65 @@ function formatDateTime(dateTimeValue) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function buildScheduleSearchParams({ source, destination, date }) {
+  const params = new URLSearchParams();
+  if (source) params.set('source', source);
+  if (destination) params.set('destination', destination);
+  if (date) params.set('date', date);
+  return params;
+}
+
+function updateSearchInputs({ source, destination, date }) {
+  const sourceInput = document.getElementById('source');
+  const destinationInput = document.getElementById('destination');
+
+  if (sourceInput) sourceInput.value = source || '';
+  if (destinationInput) destinationInput.value = destination || '';
+  if (date) {
+    elements.travelDate.value = date;
+  }
+  refreshJourneyDateUI();
+}
+
+function searchCriteriaLabel({ source, destination, date }) {
+  const routeLabel = source || destination
+    ? `${source || 'Any source'} -> ${destination || 'Any destination'}`
+    : 'All routes';
+  const dateLabel = date ? formatDisplayDate(date) : 'Any date';
+  return `${routeLabel} | ${dateLabel}`;
+}
+
+function renderBusResultsHeader({ source, destination, date }, result = null) {
+  if (elements.busResultsRoute) {
+    elements.busResultsRoute.textContent = source || destination
+      ? `${source || 'Any source'} -> ${destination || 'Any destination'}`
+      : 'All routes';
+  }
+  if (elements.busResultsDate) {
+    elements.busResultsDate.textContent = date ? formatDisplayDate(date) : 'Any date';
+  }
+  if (elements.busResultsMeta) {
+    if (!result) {
+      elements.busResultsMeta.textContent = 'Loading matching buses and fare details.';
+    } else if (result.schedules === null) {
+      elements.busResultsMeta.textContent = 'Search could not be completed.';
+    } else if (!result.schedules.length) {
+      elements.busResultsMeta.textContent = 'No buses matched this route and date.';
+    } else if (result.fallbackDate) {
+      elements.busResultsMeta.textContent =
+        `${result.schedules.length} bus option(s) found on the nearest available date ${formatDisplayDate(result.fallbackDate)}.`;
+    } else {
+      elements.busResultsMeta.textContent = `${result.schedules.length} bus option(s) available for this search.`;
+    }
+  }
+}
+
+function navigateToResultsPage({ source, destination, date }) {
+  const params = buildScheduleSearchParams({ source, destination, date });
+  const target = params.toString() ? `${RESULTS_PAGE_PATH}?${params.toString()}` : RESULTS_PAGE_PATH;
+  window.location.assign(target);
 }
 
 function journeyHint(isoDate) {
@@ -219,6 +320,74 @@ function showForgotStatus(message, isError = false) {
   elements.forgotStatus.className = `summary ${isError ? 'status-err' : 'status-ok'}`;
 }
 
+function showGoogleAuthStatus(message, isError = false) {
+  if (!elements.googleAuthStatus) return;
+  if (!message) {
+    elements.googleAuthStatus.textContent = '';
+    elements.googleAuthStatus.className = 'summary google-auth-status hidden';
+    return;
+  }
+  elements.googleAuthStatus.textContent = message;
+  elements.googleAuthStatus.className = `summary google-auth-status ${isError ? 'status-err' : 'status-ok'}`;
+}
+
+async function handleGoogleCredentialResponse(response) {
+  if (!response?.credential) {
+    showGoogleAuthStatus('Google did not return a valid credential.', true);
+    return;
+  }
+
+  showGoogleAuthStatus('Signing in with Google...');
+
+  try {
+    const data = await api('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential: response.credential })
+    });
+    setAuth(data);
+    showGoogleAuthStatus('Google sign-in successful.');
+  } catch (err) {
+    showGoogleAuthStatus(err.message, true);
+  }
+}
+
+function initializeGoogleAuth() {
+  if (!elements.googleAuthBlock || !elements.googleSigninButton || state.googleInitialized) return;
+
+  const clientId = APP_CONFIG.googleClientId?.trim();
+  if (!clientId) {
+    elements.googleAuthBlock.classList.add('hidden');
+    return;
+  }
+
+  if (!window.google?.accounts?.id) {
+    state.googleInitAttempts += 1;
+    if (state.googleInitAttempts <= 20) {
+      window.setTimeout(initializeGoogleAuth, 250);
+    }
+    return;
+  }
+
+  window.google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleGoogleCredentialResponse,
+    auto_select: false,
+    cancel_on_tap_outside: true
+  });
+
+  elements.googleSigninButton.innerHTML = '';
+  window.google.accounts.id.renderButton(elements.googleSigninButton, {
+    theme: 'filled_blue',
+    size: 'large',
+    shape: 'rectangular',
+    text: 'continue_with',
+    width: 320
+  });
+
+  elements.googleAuthBlock.classList.remove('hidden');
+  state.googleInitialized = true;
+}
+
 function normalizeBookingStatus(status) {
   return status === 'CONFIRMED' ? 'BOOKED' : status;
 }
@@ -232,6 +401,137 @@ function formatSeatNumbers(booking) {
 
 function formatPaymentStatus(booking) {
   return booking.paymentStatus || 'PENDING';
+}
+
+function setPaymentBadge(element, text, tone = 'muted') {
+  if (!element) return;
+  element.textContent = text;
+  element.className = `payment-badge payment-badge-${tone}`;
+}
+
+function renderPaymentTimeline(items) {
+  if (!elements.paymentTimeline) return;
+  elements.paymentTimeline.innerHTML = items.map(item => `
+    <div class="payment-timeline-item payment-timeline-${item.state}">
+      <span class="payment-timeline-dot" aria-hidden="true"></span>
+      <div>
+        <strong>${item.title}</strong>
+        <p>${item.copy}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPaymentMethodState() {
+  const pending = state.pendingTraveller;
+  const draft = state.paymentDraft;
+
+  if (!pending) {
+    if (elements.paymentMethodTitle) {
+      elements.paymentMethodTitle.textContent = 'Payment method';
+    }
+    setPaymentBadge(elements.paymentModeBadge, 'Not selected');
+    setPaymentBadge(elements.paymentGatewayBadge, 'Gateway pending');
+    setPaymentBadge(elements.paymentStageBadge, 'Awaiting traveller details');
+    if (elements.paymentMethodSummary) {
+      elements.paymentMethodSummary.textContent = 'Select a seat and add traveller details to unlock the payment step.';
+    }
+    if (elements.paymentSessionPanel) {
+      elements.paymentSessionPanel.classList.add('hidden');
+    }
+    renderPaymentTimeline([
+      {
+        title: 'Choose seat',
+        copy: 'Select a bus seat before moving to payment.',
+        state: 'current'
+      },
+      {
+        title: 'Add traveller details',
+        copy: 'Passenger name, phone number, and payment mode appear here next.',
+        state: 'upcoming'
+      },
+      {
+        title: 'Confirm booking',
+        copy: 'Pay on board or finish the mock online verification flow.',
+        state: 'upcoming'
+      }
+    ]);
+    return;
+  }
+
+  if (pending.paymentMode === 'ONLINE') {
+    if (elements.paymentMethodTitle) {
+      elements.paymentMethodTitle.textContent = 'Online payment';
+    }
+    setPaymentBadge(elements.paymentModeBadge, 'ONLINE', 'info');
+    setPaymentBadge(elements.paymentGatewayBadge, draft?.paymentGateway || 'MOCK gateway', draft ? 'info' : 'muted');
+    setPaymentBadge(elements.paymentStageBadge, draft ? 'Verification pending' : 'Checkout pending', draft ? 'warn' : 'info');
+    if (elements.paymentMethodSummary) {
+      elements.paymentMethodSummary.textContent = draft
+        ? 'Your seat is locked and the mock checkout session is ready. Add the gateway payment ID to finalize the booking.'
+        : 'This flow first locks the seat, then creates a mock checkout session, and finally verifies the payment reference.';
+    }
+    renderPaymentTimeline([
+      {
+        title: 'Traveller captured',
+        copy: `Seat ${state.selectedSeat} saved for ${pending.passengerName}.`,
+        state: 'complete'
+      },
+      {
+        title: 'Checkout session',
+        copy: draft ? `Session ${draft.paymentSessionId} created with ${draft.paymentGateway}.` : 'Create the session to hold the seat temporarily.',
+        state: draft ? 'complete' : 'current'
+      },
+      {
+        title: 'Verify payment ID',
+        copy: draft ? 'Enter the mock payment ID to mark the booking as PAID.' : 'Available after the mock session is created.',
+        state: draft ? 'current' : 'upcoming'
+      }
+    ]);
+    if (elements.paymentSessionPanel) {
+      elements.paymentSessionPanel.classList.toggle('hidden', !draft);
+    }
+    if (elements.paymentSessionId) {
+      elements.paymentSessionId.textContent = draft?.paymentSessionId || '-';
+    }
+    if (elements.paymentSessionAmount) {
+      elements.paymentSessionAmount.textContent = draft ? formatAmount(draft.amount) : '-';
+    }
+    if (elements.paymentSessionExpiry) {
+      elements.paymentSessionExpiry.textContent = draft?.payableUntil ? formatDateTime(draft.payableUntil) : '-';
+    }
+    return;
+  }
+
+  if (elements.paymentMethodTitle) {
+    elements.paymentMethodTitle.textContent = 'Pay on board';
+  }
+  setPaymentBadge(elements.paymentModeBadge, 'PAY_ON_BOARD', 'success');
+  setPaymentBadge(elements.paymentGatewayBadge, 'No gateway required', 'success');
+  setPaymentBadge(elements.paymentStageBadge, 'Ready to confirm', 'success');
+  if (elements.paymentMethodSummary) {
+    elements.paymentMethodSummary.textContent = 'The booking is confirmed now and the payment stays pending until the passenger boards.';
+  }
+  if (elements.paymentSessionPanel) {
+    elements.paymentSessionPanel.classList.add('hidden');
+  }
+  renderPaymentTimeline([
+    {
+      title: 'Traveller captured',
+      copy: `Seat ${state.selectedSeat} saved for ${pending.passengerName}.`,
+      state: 'complete'
+    },
+    {
+      title: 'Booking confirmation',
+      copy: 'Confirm once to create the booking record immediately.',
+      state: 'current'
+    },
+    {
+      title: 'Collect fare on board',
+      copy: 'The trip remains booked while payment status stays PENDING.',
+      state: 'upcoming'
+    }
+  ]);
 }
 
 function statusFilterLabel(status) {
@@ -290,6 +590,78 @@ function flowMessageForStep(step) {
     default:
       return 'Continue the booking flow.';
   }
+}
+
+function workspaceMessageFor(panel) {
+  switch (panel) {
+    case 'history':
+      return 'Review bookings and filter by status.';
+    case 'routes':
+      return 'Browse active route coverage.';
+    case 'tourism':
+      return 'Check the tourism-focused AC circuits.';
+    case 'admin':
+      return 'Admin tools are grouped in one workspace tab.';
+    default:
+      return 'Use Account in the top right for login or signup.';
+  }
+}
+
+function setAccountPanel(panel) {
+  if (!elements.accountPanels.length) return;
+
+  state.accountPanel = panel;
+  elements.accountPanelTabs.forEach(button => {
+    button.classList.toggle('active', button.dataset.accountPanelTab === panel);
+  });
+  elements.accountPanels.forEach(panelEl => {
+    panelEl.classList.toggle('hidden', panelEl.dataset.accountPanel !== panel);
+  });
+}
+
+function setAccountMenu(open) {
+  if (!elements.accountMenu || !elements.accountMenuBtn) return;
+
+  elements.accountMenu.classList.toggle('hidden', !open);
+  elements.accountMenuBtn.setAttribute('aria-expanded', String(open));
+}
+
+function setWorkspacePanel(panel) {
+  if (!elements.workspaceTabButtons.length || !elements.workspacePanels.length) return;
+
+  const requestedTab = elements.workspaceTabButtons.find(
+    tab => tab.dataset.workspaceTab === panel && !tab.classList.contains('hidden')
+  );
+  const fallbackTab = elements.workspaceTabButtons.find(tab => !tab.classList.contains('hidden'));
+  const activeTabId = requestedTab?.dataset.workspaceTab || fallbackTab?.dataset.workspaceTab;
+
+  if (!activeTabId) return;
+  state.workspacePanel = activeTabId;
+
+  elements.workspaceTabButtons.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.workspaceTab === activeTabId);
+  });
+  elements.workspacePanels.forEach(panelEl => {
+    panelEl.classList.toggle('workspace-hidden', panelEl.dataset.workspacePanel !== activeTabId);
+  });
+  if (elements.workspaceHint) {
+    elements.workspaceHint.textContent = workspaceMessageFor(activeTabId);
+  }
+}
+
+function refreshWorkspaceAccess() {
+  if (!elements.workspaceTabButtons.length) return;
+
+  const adminTab = elements.workspaceTabButtons.find(tab => tab.dataset.workspaceTab === 'admin');
+  if (adminTab) {
+    adminTab.classList.add('hidden');
+  }
+
+  if (state.workspacePanel === 'admin') {
+    state.workspacePanel = 'routes';
+  }
+
+  setWorkspacePanel(state.workspacePanel);
 }
 
 function scheduleRouteLabel(schedule) {
@@ -497,6 +869,87 @@ async function loadSchedules(params = '') {
   }
 }
 
+async function searchSchedulesForCriteria({ source, destination, date }) {
+  const params = buildScheduleSearchParams({ source, destination, date });
+  let schedules = await loadSchedules(params.toString() ? `?${params.toString()}` : '');
+  if (schedules === null) {
+    return {
+      schedules: null,
+      statusText: 'Could not search schedules. Please try again.',
+      statusClass: 'summary status-err'
+    };
+  }
+
+  let statusText = `${schedules.length} schedule(s) found.`;
+  let statusClass = 'summary status-ok';
+  let fallbackDate = null;
+
+  if (schedules.length === 0 && date) {
+    const fallbackParams = buildScheduleSearchParams({ source, destination, date: '' });
+    const fallback = await loadSchedules(fallbackParams.toString() ? `?${fallbackParams.toString()}` : '');
+    if (fallback && fallback.length > 0) {
+      schedules = fallback;
+      fallbackDate = fallback
+        .map(schedule => schedule.travelDate)
+        .sort((a, b) => Math.abs(new Date(a) - new Date(date)) - Math.abs(new Date(b) - new Date(date)))[0];
+      statusText = `No buses found for ${date}. Showing nearest available date ${fallbackDate}.`;
+      statusClass = 'summary status-err';
+    }
+  }
+
+  return { schedules, statusText, statusClass, fallbackDate };
+}
+
+async function showBusResults({ source, destination, date }) {
+  const criteria = { source, destination, date };
+  const criteriaLabel = searchCriteriaLabel(criteria);
+  elements.searchStatus.textContent = 'Searching schedules...';
+  elements.searchStatus.className = 'summary';
+  if (elements.busResultsStatus) {
+    elements.busResultsStatus.textContent = 'Searching schedules...';
+    elements.busResultsStatus.className = 'summary';
+  }
+  elements.busListCopy.textContent = `Loading results for ${criteriaLabel}.`;
+  renderBusResultsHeader(criteria);
+
+  const result = await searchSchedulesForCriteria(criteria);
+  if (result.schedules === null) {
+    elements.searchStatus.textContent = result.statusText;
+    elements.searchStatus.className = result.statusClass;
+    if (elements.busResultsStatus) {
+      elements.busResultsStatus.textContent = result.statusText;
+      elements.busResultsStatus.className = result.statusClass;
+    }
+    elements.busListCopy.textContent = result.statusText;
+    renderBusResultsHeader(criteria, result);
+    setFlowStep('buses', 'Bus List Page could not be loaded.');
+    return;
+  }
+
+  elements.searchStatus.textContent = result.statusText;
+  elements.searchStatus.className = result.statusClass;
+  if (elements.busResultsStatus) {
+    elements.busResultsStatus.textContent = result.statusText;
+    elements.busResultsStatus.className = result.statusClass;
+  }
+  renderBusResultsHeader(criteria, result);
+
+  if (!result.schedules.length) {
+    elements.busListCopy.textContent = `No buses found for ${criteriaLabel}.`;
+    setFlowStep('buses', 'No schedules matched the selected search.');
+    return;
+  }
+
+  if (result.fallbackDate) {
+    elements.busListCopy.textContent =
+      `${criteriaLabel} | Showing nearest travel date ${formatDisplayDate(result.fallbackDate)}.`;
+  } else {
+    elements.busListCopy.textContent = `${criteriaLabel} | ${result.schedules.length} option(s) available.`;
+  }
+
+  setFlowStep('buses', 'Bus List Page ready. Choose one schedule to continue.');
+}
+
 async function loadSeats(scheduleId, activateStep = true, silent = false) {
   state.selectedSchedule = state.selectedSchedule || state.schedules.find(schedule => schedule.id === Number(scheduleId)) || null;
   if (!silent) {
@@ -545,9 +998,26 @@ function renderPaymentSummary() {
   `;
 }
 
+function togglePaymentIdField(visible) {
+  if (!elements.paymentIdField || !elements.paymentIdInput) return;
+  elements.paymentIdField.classList.toggle('hidden', !visible);
+  elements.paymentIdInput.required = visible;
+  if (!visible) {
+    elements.paymentIdInput.value = '';
+  }
+}
+
 function refreshPaymentAction() {
   const pending = state.pendingTraveller;
+  renderPaymentMethodState();
   if (!pending) {
+    togglePaymentIdField(false);
+    if (elements.paymentIdLabel) {
+      elements.paymentIdLabel.textContent = 'Payment ID';
+    }
+    if (elements.paymentIdHint) {
+      elements.paymentIdHint.textContent = 'Use the reference returned by the payment gateway.';
+    }
     elements.paymentActionTitle.textContent = 'Payment Action';
     elements.paymentActionCopy.textContent = 'Create a payment session or confirm pay-on-board.';
     elements.paymentActionBtn.textContent = 'Continue';
@@ -555,24 +1025,34 @@ function refreshPaymentAction() {
     return;
   }
 
-  elements.paymentActionBtn.disabled = false;
-
   if (pending.paymentMode === 'ONLINE' && !state.paymentDraft) {
+    togglePaymentIdField(false);
     elements.paymentActionTitle.textContent = 'Create Mock Checkout';
-    elements.paymentActionCopy.textContent = 'A seat lock and mock payment session will be created first.';
+    elements.paymentActionCopy.textContent = 'A temporary seat lock and mock payment session will be created first.';
     elements.paymentActionBtn.textContent = 'Start payment';
+    elements.paymentActionBtn.disabled = false;
     return;
   }
 
   if (pending.paymentMode === 'ONLINE' && state.paymentDraft) {
+    togglePaymentIdField(true);
+    if (elements.paymentIdLabel) {
+      elements.paymentIdLabel.textContent = 'Mock Payment ID';
+    }
+    if (elements.paymentIdHint) {
+      elements.paymentIdHint.textContent = 'Enter any mock gateway reference, for example mock-payment-123.';
+    }
     elements.paymentActionTitle.textContent = 'Complete Mock Payment';
     elements.paymentActionCopy.textContent = `Session ${state.paymentDraft.paymentSessionId} is ready. Verify it to finalize the booking.`;
+    elements.paymentActionBtn.disabled = !elements.paymentIdInput.value.trim();
     elements.paymentActionBtn.textContent = 'Complete payment';
     return;
   }
 
+  togglePaymentIdField(false);
   elements.paymentActionTitle.textContent = 'Confirm Pay On Board';
   elements.paymentActionCopy.textContent = 'This final step creates the booking with payment status PENDING.';
+  elements.paymentActionBtn.disabled = false;
   elements.paymentActionBtn.textContent = 'Confirm booking';
 }
 
@@ -965,8 +1445,22 @@ async function loadAdminDashboard() {
 
 function updateAuthStatus() {
   const user = currentUser();
+  const loggedIn = Boolean(user);
+
+  elements.guestOnlyBlocks.forEach(block => {
+    block.classList.toggle('hidden', loggedIn);
+  });
+  elements.userOnlyBlocks.forEach(block => {
+    block.classList.toggle('hidden', !loggedIn);
+  });
+
   if (!user) {
     elements.authStatus.textContent = 'Not logged in.';
+    setAccountPanel('login');
+    showGoogleAuthStatus('');
+    if (elements.accountAdminLink) {
+      elements.accountAdminLink.classList.add('hidden');
+    }
     elements.bookingForm.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
     elements.adminBookingsSummary.textContent = 'Admin login required.';
@@ -975,22 +1469,24 @@ function updateAuthStatus() {
     elements.adminTrendChart.innerHTML = '';
     elements.adminMonitoring.innerHTML = '<div class="item muted">Admin login required.</div>';
     loadMyBookings();
+    refreshWorkspaceAccess();
     return;
   }
 
   elements.authStatus.textContent = `Logged in as ${user.name} (${user.role})`;
-  loadMyBookings();
-  if (user.role === 'ADMIN') {
-    elements.adminPanel.classList.remove('hidden');
-    loadAdminDashboard();
-  } else {
-    elements.adminPanel.classList.add('hidden');
-    elements.adminBookingsSummary.textContent = 'Admin login required.';
-    elements.adminBookings.innerHTML = '<div class="item muted">Admin login required.</div>';
-    elements.adminTrendSummary.innerHTML = '<div class="item muted">Admin login required.</div>';
-    elements.adminTrendChart.innerHTML = '';
-    elements.adminMonitoring.innerHTML = '<div class="item muted">Admin login required.</div>';
+  setAccountMenu(false);
+  showGoogleAuthStatus('');
+  if (elements.accountAdminLink) {
+    elements.accountAdminLink.classList.toggle('hidden', !isAdmin());
   }
+  loadMyBookings();
+  elements.adminPanel.classList.add('hidden');
+  elements.adminBookingsSummary.textContent = 'Use /admin.html for admin tools.';
+  elements.adminBookings.innerHTML = '<div class="item muted">Use the dedicated admin page for admin tools.</div>';
+  elements.adminTrendSummary.innerHTML = '<div class="item muted">Use the dedicated admin page for admin tools.</div>';
+  elements.adminTrendChart.innerHTML = '';
+  elements.adminMonitoring.innerHTML = '<div class="item muted">Use the dedicated admin page for admin tools.</div>';
+  refreshWorkspaceAccess();
 }
 
 async function releasePendingLock() {
@@ -999,6 +1495,8 @@ async function releasePendingLock() {
     await api(`/api/bookings/locks/${state.paymentDraft.bookingId}`, { method: 'DELETE', auth: true });
   } catch {
     // Best-effort unlock when leaving the payment step.
+  } finally {
+    refreshPaymentAction();
   }
 }
 
@@ -1012,10 +1510,12 @@ function resetBookingFlow(options = {}) {
   state.confirmation = null;
   elements.bookingForm.reset();
   elements.bookingForm.classList.add('hidden');
+  togglePaymentIdField(false);
   elements.paymentStatus.textContent = '';
   elements.bookingStatus.textContent = '';
   elements.paymentSummary.innerHTML = '<div><span>Status</span><strong>No pending booking</strong></div>';
   elements.confirmationCard.innerHTML = '';
+  renderPaymentMethodState();
   if (options.goToSearch !== false) {
     setFlowStep('search', 'Start by searching a route.');
   } else {
@@ -1054,7 +1554,8 @@ async function handlePaymentAction() {
         bookingId: lockedBooking.bookingId,
         paymentSessionId: checkout.paymentSessionId,
         amount: checkout.amount,
-        paymentGateway: checkout.paymentGateway
+        paymentGateway: checkout.paymentGateway,
+        payableUntil: checkout.payableUntil
       };
       elements.paymentStatus.textContent = `Payment session ${checkout.paymentSessionId} created for ${formatAmount(checkout.amount)}.`;
       elements.paymentStatus.className = 'summary status-ok';
@@ -1064,11 +1565,17 @@ async function handlePaymentAction() {
     }
 
     if (pending.paymentMode === 'ONLINE' && state.paymentDraft) {
+      const paymentId = elements.paymentIdInput.value.trim();
+      if (!paymentId) {
+        elements.paymentStatus.textContent = 'Enter payment ID to complete online booking.';
+        elements.paymentStatus.className = 'summary status-err';
+        return;
+      }
       const response = await api(`/api/bookings/locks/${state.paymentDraft.bookingId}/payments/verify`, {
         method: 'POST',
         body: JSON.stringify({
           paymentSessionId: state.paymentDraft.paymentSessionId,
-          gatewayPaymentReference: `mock-${Date.now()}`
+          paymentId
         }),
         auth: true
       });
@@ -1110,6 +1617,12 @@ async function handlePaymentAction() {
 
 document.getElementById('register-form').addEventListener('submit', async event => {
   event.preventDefault();
+
+  if (currentUser()) {
+    alert('Logout first to create a new account.');
+    return;
+  }
+
   try {
     const payload = {
       name: document.getElementById('reg-name').value.trim(),
@@ -1118,6 +1631,7 @@ document.getElementById('register-form').addEventListener('submit', async event 
     };
     const data = await api('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
     setAuth(data);
+    document.getElementById('register-form').reset();
   } catch (err) {
     alert(err.message);
   }
@@ -1125,20 +1639,41 @@ document.getElementById('register-form').addEventListener('submit', async event 
 
 document.getElementById('login-form').addEventListener('submit', async event => {
   event.preventDefault();
+
+  const payload = {
+    email: document.getElementById('login-email').value.trim(),
+    password: document.getElementById('login-password').value
+  };
+  const user = currentUser();
+
+  if (user) {
+    const activeEmail = user.email?.trim().toLowerCase();
+    const requestedEmail = payload.email.toLowerCase();
+
+    if (activeEmail === requestedEmail) {
+      document.getElementById('login-form').reset();
+      setAccountMenu(false);
+      updateAuthStatus();
+      return;
+    }
+
+    alert('Logout first to switch accounts.');
+    return;
+  }
+
   try {
-    const payload = {
-      email: document.getElementById('login-email').value.trim(),
-      password: document.getElementById('login-password').value
-    };
     const data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
     setAuth(data);
+    showGoogleAuthStatus('');
+    document.getElementById('login-form').reset();
   } catch (err) {
     alert(err.message);
   }
 });
 
 document.getElementById('forgot-toggle-btn').addEventListener('click', () => {
-  elements.forgotPanel.classList.toggle('hidden');
+  setAccountPanel('reset');
+  setAccountMenu(true);
   const loginEmail = document.getElementById('login-email').value.trim();
   if (loginEmail) document.getElementById('forgot-email').value = loginEmail;
   elements.forgotStatus.textContent = '';
@@ -1178,9 +1713,50 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await releasePendingLock();
-  resetBookingFlow();
   clearAuth();
+  showGoogleAuthStatus('');
+  if (isResultsPage()) {
+    window.location.assign('/');
+    return;
+  }
+  resetBookingFlow();
 });
+
+if (elements.accountMenuBtn) {
+  elements.accountMenuBtn.addEventListener('click', () => {
+    const isOpen = elements.accountMenuBtn.getAttribute('aria-expanded') === 'true';
+    setAccountMenu(!isOpen);
+  });
+}
+
+if (elements.accountPanelTabs.length) {
+  elements.accountPanelTabs.forEach(button => {
+    button.addEventListener('click', () => {
+      setAccountPanel(button.dataset.accountPanelTab);
+    });
+  });
+}
+
+document.addEventListener('click', event => {
+  if (!elements.accountMenu || !elements.accountMenuBtn) return;
+  if (elements.accountMenu.classList.contains('hidden')) return;
+  if (elements.accountMenu.contains(event.target) || elements.accountMenuBtn.contains(event.target)) return;
+  setAccountMenu(false);
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && elements.accountMenu && !elements.accountMenu.classList.contains('hidden')) {
+    setAccountMenu(false);
+  }
+});
+
+if (elements.workspaceTabs) {
+  elements.workspaceTabs.addEventListener('click', event => {
+    const button = event.target.closest('[data-workspace-tab]');
+    if (!button) return;
+    setWorkspacePanel(button.dataset.workspaceTab);
+  });
+}
 
 if (elements.myBookingsStatus) {
   elements.myBookingsStatus.addEventListener('change', () => {
@@ -1290,50 +1866,11 @@ elements.searchForm.addEventListener('submit', async event => {
   const source = document.getElementById('source').value.trim();
   const destination = document.getElementById('destination').value.trim();
   const date = elements.travelDate.value;
-  elements.searchStatus.textContent = 'Searching schedules...';
-  elements.searchStatus.className = 'summary';
-
-  const params = new URLSearchParams();
-  if (source) params.set('source', source);
-  if (destination) params.set('destination', destination);
-  if (date) params.set('date', date);
-
-  let schedules = await loadSchedules(params.toString() ? `?${params.toString()}` : '');
-  if (schedules === null) {
-    elements.searchStatus.textContent = 'Could not search schedules. Please try again.';
-    elements.searchStatus.className = 'summary status-err';
+  if (!isResultsPage()) {
+    navigateToResultsPage({ source, destination, date });
     return;
   }
-
-  let statusText = `${schedules.length} schedule(s) found.`;
-  let statusClass = 'summary status-ok';
-
-  if (schedules.length === 0 && date) {
-    const fallbackParams = new URLSearchParams();
-    if (source) fallbackParams.set('source', source);
-    if (destination) fallbackParams.set('destination', destination);
-
-    const fallback = await loadSchedules(fallbackParams.toString() ? `?${fallbackParams.toString()}` : '');
-    if (fallback && fallback.length > 0) {
-      schedules = fallback;
-      const nearestDate = fallback
-        .map(schedule => schedule.travelDate)
-        .sort((a, b) => Math.abs(new Date(a) - new Date(date)) - Math.abs(new Date(b) - new Date(date)))[0];
-      statusText = `No buses found for ${date}. Showing nearest available date ${nearestDate}.`;
-      statusClass = 'summary status-err';
-    }
-  }
-
-  if (!schedules || schedules.length === 0) {
-    elements.searchStatus.textContent = statusText;
-    elements.searchStatus.className = statusClass;
-    return;
-  }
-
-  elements.searchStatus.textContent = statusText;
-  elements.searchStatus.className = statusClass;
-  elements.busListCopy.textContent = `${scheduleRouteLabel(schedules[0])} | ${schedules.length} option(s) available.`;
-  setFlowStep('buses', 'Bus List Page ready. Choose one schedule to continue.');
+  await showBusResults({ source, destination, date });
 });
 
 elements.bookingForm.addEventListener('submit', async event => {
@@ -1352,8 +1889,15 @@ elements.bookingForm.addEventListener('submit', async event => {
 });
 
 elements.paymentActionBtn.addEventListener('click', handlePaymentAction);
+if (elements.paymentIdInput) {
+  elements.paymentIdInput.addEventListener('input', refreshPaymentAction);
+}
 
 document.getElementById('back-to-search').addEventListener('click', () => {
+  if (isResultsPage()) {
+    window.location.assign('/');
+    return;
+  }
   resetBookingFlow({ goToSearch: true });
 });
 
@@ -1377,6 +1921,10 @@ document.getElementById('back-to-seats').addEventListener('click', async () => {
 });
 
 document.getElementById('book-another-btn').addEventListener('click', () => {
+  if (isResultsPage()) {
+    window.location.assign('/');
+    return;
+  }
   resetBookingFlow();
 });
 
@@ -1395,7 +1943,11 @@ elements.dateContent.addEventListener('click', () => {
 });
 
 if (!elements.travelDate.value) {
-  setJourneyDate(0);
+  if (isResultsPage()) {
+    refreshJourneyDateUI();
+  } else {
+    setJourneyDate(0);
+  }
 } else {
   refreshJourneyDateUI();
 }
@@ -1403,7 +1955,21 @@ if (!elements.travelDate.value) {
 renderPaymentSummary();
 refreshPaymentAction();
 updateJourneySummary();
+setAccountPanel(state.accountPanel);
 updateAuthStatus();
+initializeGoogleAuth();
 loadRoutes();
 loadTourismRoutes();
-setFlowStep('search', 'Start by searching a route.');
+refreshWorkspaceAccess();
+
+if (isResultsPage()) {
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get('source')?.trim() || '';
+  const destination = params.get('destination')?.trim() || '';
+  const date = params.get('date')?.trim() || '';
+  updateSearchInputs({ source, destination, date });
+  setFlowStep('buses', 'Loading bus results...');
+  showBusResults({ source, destination, date });
+} else {
+  setFlowStep('search', 'Start by searching a route.');
+}

@@ -264,7 +264,7 @@ public class BookingService {
 
         booking.setPaymentStatus(PaymentStatus.PAID);
         booking.setPaymentGateway(booking.getPaymentGateway() == null ? configuredPaymentGateway : booking.getPaymentGateway());
-        booking.setPaymentReference(request.getGatewayPaymentReference().trim());
+        booking.setPaymentReference(request.getPaymentId().trim());
         booking.setPaidAt(now);
         return finalizeLockedBooking(booking);
     }

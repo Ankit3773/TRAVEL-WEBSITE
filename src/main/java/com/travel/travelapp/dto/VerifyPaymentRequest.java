@@ -1,5 +1,6 @@
 package com.travel.travelapp.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,5 +13,6 @@ public class VerifyPaymentRequest {
     private String paymentSessionId;
 
     @NotBlank
-    private String gatewayPaymentReference;
+    @JsonAlias("gatewayPaymentReference")
+    private String paymentId;
 }
