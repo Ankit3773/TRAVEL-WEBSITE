@@ -27,6 +27,14 @@ public interface TripScheduleRepository extends JpaRepository<TripSchedule, Long
             String source,
             String destination);
 
+    List<TripSchedule> findByActiveTrueAndTravelDateGreaterThanEqualOrderByTravelDateAscDepartureTimeAsc(
+            LocalDate fromDate);
+
+    List<TripSchedule> findByActiveTrueAndTravelDateGreaterThanEqualAndRouteSourceIgnoreCaseAndRouteDestinationIgnoreCaseOrderByTravelDateAscDepartureTimeAsc(
+            LocalDate fromDate,
+            String source,
+            String destination);
+
     List<TripSchedule> findByBusIdAndActiveTrue(Long busId);
 
     List<TripSchedule> findByRouteIdAndActiveTrue(Long routeId);

@@ -166,10 +166,18 @@ function journeyHint(isoDate) {
 }
 
 function refreshJourneyDateUI() {
-  const selectedDate = elements.travelDate.value;
   const today = toIsoDate(new Date());
   const tomorrow = toIsoDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
+  // Disallow past dates at the picker level.
+  elements.travelDate.min = today;
+
+  // If the input somehow holds a past date (stale value, manual entry), snap to today.
+  if (elements.travelDate.value && elements.travelDate.value < today) {
+    elements.travelDate.value = today;
+  }
+
+  const selectedDate = elements.travelDate.value;
   elements.journeyDateText.textContent = formatJourneyDate(selectedDate);
   elements.journeyDayHint.textContent = journeyHint(selectedDate);
   elements.todayDateBtn.classList.toggle('active', selectedDate === today);
@@ -1309,6 +1317,7 @@ elements.searchForm.addEventListener('submit', async event => {
   let statusClass = 'summary status-ok';
 
   if (schedules.length === 0 && date) {
+    // Fall back to upcoming trips on this route (backend filters past dates and departed times).
     const fallbackParams = new URLSearchParams();
     if (source) fallbackParams.set('source', source);
     if (destination) fallbackParams.set('destination', destination);
@@ -1316,10 +1325,11 @@ elements.searchForm.addEventListener('submit', async event => {
     const fallback = await loadSchedules(fallbackParams.toString() ? `?${fallbackParams.toString()}` : '');
     if (fallback && fallback.length > 0) {
       schedules = fallback;
-      const nearestDate = fallback
+      const nextDate = fallback
         .map(schedule => schedule.travelDate)
-        .sort((a, b) => Math.abs(new Date(a) - new Date(date)) - Math.abs(new Date(b) - new Date(date)))[0];
-      statusText = `No buses found for ${date}. Showing nearest available date ${nearestDate}.`;
+        .filter(d => d >= date)
+        .sort()[0] || fallback[0].travelDate;
+      statusText = `No buses found for ${date}. Showing next available date ${nextDate}.`;
       statusClass = 'summary status-err';
     }
   }
