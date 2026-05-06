@@ -20,7 +20,7 @@ Start from the root `.env.example` and add production values:
 Example:
 
 ```bash
-APP_FRONTEND_ALLOWED_ORIGINS=https://narayantravels.in,https://www.narayantravels.in
+APP_FRONTEND_ALLOWED_ORIGINS=https://naryantravel.duckdns.org
 ```
 
 ## 2. Backend on EC2
@@ -57,12 +57,43 @@ This script:
 
 The EC2 service runs with the `prod` Spring profile via `run-prod.sh`.
 
+### 2.1 Enable free HTTPS (Let's Encrypt)
+
+After the backend is deployed and DNS for `naryantravel.duckdns.org` points at the EC2 public IP, run **once**:
+
+```bash
+export EC2_HOST=<ec2-public-dns>
+export EC2_USER=ec2-user
+export EC2_KEY_PATH=~/.ssh/<your-key>.pem
+export CERTBOT_EMAIL=you@example.com
+
+./deploy/aws/ec2/enable-https.sh
+```
+
+This script:
+- installs `certbot` + the nginx plugin (if missing)
+- obtains a free Let's Encrypt certificate for `naryantravel.duckdns.org`
+- rewrites the nginx config to listen on 443 with SSL and 301-redirect HTTP → HTTPS
+- enables the systemd timer that auto-renews the certificate every ~60 days
+
+Prerequisites:
+- ports 80 **and** 443 open in the EC2 security group
+- DNS A/AAAA records for both domains already resolving to the EC2 host
+
+To use a different domain set, override `DOMAINS`:
+
+```bash
+DOMAINS="example.com www.example.com api.example.com" ./deploy/aws/ec2/enable-https.sh
+```
+
+Subsequent `publish-backend.sh` runs detect the SSL-enabled nginx config and leave it in place, so HTTPS survives redeploys.
+
 ## 3. Frontend on S3 or Vercel
 
 Export the static frontend bundle:
 
 ```bash
-APP_PUBLIC_API_BASE_URL=https://api.narayantravels.in \
+APP_PUBLIC_API_BASE_URL=https://naryantravel.duckdns.org \
 ./deploy/frontend/export-static-site.sh
 ```
 

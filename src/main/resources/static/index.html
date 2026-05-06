@@ -18,416 +18,702 @@
         <img class="site-logo" src="/logo-narayan-travels.png?v=2" alt="Narayan Travels logo" />
         <div>
           <p class="eyebrow">Narayan Travels</p>
-          <h1>Stage 6 Booking Flow</h1>
-          <p class="subtitle">Search Bihar routes, compare buses, watch seats refresh, and finish booking in a guided flow.</p>
+          <h1>Narayan Travels</h1>
+          <p class="subtitle">Book regular bus routes or charter a bus for your wedding baraat.</p>
         </div>
       </div>
       <div class="hero-badges">
-        <span class="hero-pill">Local UI live</span>
+        <span class="hero-pill">Bihar routes</span>
         <span class="hero-pill">Seat polling enabled</span>
-        <span class="hero-pill">Mock payment ready</span>
+        <span class="hero-pill">Marriage charter</span>
       </div>
     </div>
   </header>
 
   <main class="layout">
-    <section class="card booking-shell full-width">
-      <div class="workflow-head">
-        <div>
-          <p class="section-tag">Customer Journey</p>
-          <h2>Book in five clear steps</h2>
+
+    <!-- ── Tab Navigation ─────────────────────────────────────────── -->
+    <nav class="main-tab-nav full-width" id="main-tab-nav">
+      <button class="main-tab-btn active" data-tab="bus">
+        <span class="tab-icon">🚌</span>
+        <span class="tab-label">Bus Booking</span>
+      </button>
+      <button class="main-tab-btn" data-tab="marriage">
+        <span class="tab-icon">💍</span>
+        <span class="tab-label">Marriage Booking</span>
+      </button>
+      <button class="main-tab-btn" data-tab="tourism">
+        <span class="tab-icon">🏛️</span>
+        <span class="tab-label">Tourism Booking</span>
+      </button>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!--  TAB 1 — Bus Booking                                        -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div id="tab-bus" class="tab-panel full-width">
+
+      <section class="card booking-shell full-width">
+        <div class="workflow-head">
+          <div>
+            <p class="section-tag">Customer Journey</p>
+            <h2>Book in five clear steps</h2>
+          </div>
+          <div id="flow-status" class="flow-status">Start by searching a route.</div>
         </div>
-        <div id="flow-status" class="flow-status">Start by searching a route.</div>
-      </div>
 
-      <ol class="stepper" id="stepper">
-        <li data-step="search" class="active"><span>1</span><strong>Search</strong></li>
-        <li data-step="buses"><span>2</span><strong>Bus List</strong></li>
-        <li data-step="seats"><span>3</span><strong>Seat Selection</strong></li>
-        <li data-step="payment"><span>4</span><strong>Payment</strong></li>
-        <li data-step="confirmation"><span>5</span><strong>Confirmation</strong></li>
-      </ol>
+        <ol class="stepper" id="stepper">
+          <li data-step="search" class="active"><span>1</span><strong>Search</strong></li>
+          <li data-step="buses"><span>2</span><strong>Bus List</strong></li>
+          <li data-step="seats"><span>3</span><strong>Seat Selection</strong></li>
+          <li data-step="payment"><span>4</span><strong>Payment</strong></li>
+          <li data-step="confirmation"><span>5</span><strong>Confirmation</strong></li>
+        </ol>
 
-      <div class="booking-content-grid">
-        <div class="booking-main">
-          <section id="view-search" class="flow-view active">
-            <div class="view-copy">
-              <p class="section-tag">Home Page</p>
-              <h3>Find the next bus</h3>
-              <p>Use the search block to move into the booking flow. If the selected date has no service, the app falls back to the nearest available schedules.</p>
-            </div>
+        <div class="booking-content-grid">
+          <div class="booking-main">
+            <section id="view-search" class="flow-view active">
+              <div class="view-copy">
+                <p class="section-tag">Home Page</p>
+                <h3>Find the next bus</h3>
+                <p>Use the search block to move into the booking flow. If the selected date has no service, the app falls back to the nearest available schedules.</p>
+              </div>
 
-            <form id="search-form" class="search-modern-form">
-              <div class="search-panel">
-                <div class="search-segment input-segment">
-                  <div class="segment-icon" aria-hidden="true">🚌</div>
-                  <label for="source">From</label>
-                  <input id="source" type="text" placeholder="Patna" />
-                </div>
+              <form id="search-form" class="search-modern-form">
+                <div class="search-panel">
+                  <div class="search-segment input-segment">
+                    <div class="segment-icon" aria-hidden="true">🚌</div>
+                    <label for="source">From</label>
+                    <input id="source" type="text" placeholder="Patna" />
+                  </div>
 
-                <div class="search-segment input-segment">
-                  <div class="segment-icon" aria-hidden="true">📍</div>
-                  <label for="destination">To</label>
-                  <input id="destination" type="text" placeholder="Gaya" />
-                </div>
+                  <div class="search-segment input-segment">
+                    <div class="segment-icon" aria-hidden="true">📍</div>
+                    <label for="destination">To</label>
+                    <input id="destination" type="text" placeholder="Gaya" />
+                  </div>
 
-                <div class="search-segment date-segment">
-                  <div class="segment-icon" aria-hidden="true">📅</div>
-                  <div class="date-content">
-                    <div class="journey-label">Date of Journey</div>
-                    <div class="journey-date-line">
-                      <span id="journey-date-text" class="journey-date-text">--</span>
-                      <span id="journey-day-hint" class="journey-day-hint">(Select date)</span>
+                  <div class="search-segment date-segment">
+                    <div class="segment-icon" aria-hidden="true">📅</div>
+                    <div class="date-content">
+                      <div class="journey-label">Date of Journey</div>
+                      <div class="journey-date-line">
+                        <span id="journey-date-text" class="journey-date-text">--</span>
+                        <span id="journey-day-hint" class="journey-day-hint">(Select date)</span>
+                      </div>
                     </div>
+                    <div class="quick-date-actions">
+                      <button id="date-today-btn" type="button" class="quick-date-btn">Today</button>
+                      <button id="date-tomorrow-btn" type="button" class="quick-date-btn">Tomorrow</button>
+                    </div>
+                    <input id="travel-date" type="date" class="sr-only-date" />
                   </div>
-                  <div class="quick-date-actions">
-                    <button id="date-today-btn" type="button" class="quick-date-btn">Today</button>
-                    <button id="date-tomorrow-btn" type="button" class="quick-date-btn">Tomorrow</button>
+
+                  <div class="search-segment women-segment">
+                    <div class="women-copy">
+                      <div class="women-icon" aria-hidden="true">👩🏻</div>
+                      <div>
+                        <div class="women-title">Booking for women</div>
+                        <button type="button" class="women-link">Know more</button>
+                      </div>
+                    </div>
+                    <label class="toggle-switch" for="women-toggle">
+                      <input id="women-toggle" type="checkbox" />
+                      <span class="toggle-slider"></span>
+                    </label>
                   </div>
-                  <input id="travel-date" type="date" class="sr-only-date" />
                 </div>
 
-                <div class="search-segment women-segment">
-                  <div class="women-copy">
-                    <div class="women-icon" aria-hidden="true">👩🏻</div>
-                    <div>
-                      <div class="women-title">Booking for women</div>
-                      <button type="button" class="women-link">Know more</button>
-                    </div>
+                <div class="search-action-wrap">
+                  <button type="submit" class="search-buses-btn">🔍 Search buses</button>
+                </div>
+              </form>
+
+              <div class="search-highlights">
+                <div class="highlight-card">
+                  <span class="highlight-label">Tourism routes</span>
+                  <strong id="tourism-count">0</strong>
+                  <p>Dedicated Bihar sightseeing circuits.</p>
+                </div>
+                <div class="highlight-card">
+                  <span class="highlight-label">Active route pairs</span>
+                  <strong id="route-count">0</strong>
+                  <p>Searchable intercity and tourism travel links.</p>
+                </div>
+                <div class="highlight-card">
+                  <span class="highlight-label">Payment options</span>
+                  <strong>2</strong>
+                  <p>Pay on board or mock online checkout.</p>
+                </div>
+              </div>
+              <div id="search-status" class="summary"></div>
+            </section>
+
+            <section id="view-buses" class="flow-view hidden">
+              <div class="view-header-row">
+                <div>
+                  <p class="section-tag">Bus List Page</p>
+                  <h3>Available buses</h3>
+                  <p id="bus-list-copy" class="hint">Pick one schedule to open seat selection.</p>
+                </div>
+                <button type="button" id="back-to-search" class="ghost-btn">Back to search</button>
+              </div>
+              <div id="schedule-list" class="bus-list-grid"></div>
+            </section>
+
+            <section id="view-seats" class="flow-view hidden">
+              <div class="view-header-row">
+                <div>
+                  <p class="section-tag">Seat Selection Page</p>
+                  <h3>Select a seat and traveller details</h3>
+                  <p class="hint">Seat data refreshes automatically while this page is open.</p>
+                </div>
+                <button type="button" id="back-to-buses" class="ghost-btn">Change bus</button>
+              </div>
+
+              <div class="seat-layout-shell">
+                <div class="seat-stage">
+                  <div id="seat-summary" class="summary">No schedule selected.</div>
+                  <div class="seat-legend">
+                    <span><i class="legend-box available"></i>Available</span>
+                    <span><i class="legend-box selected"></i>Selected</span>
+                    <span><i class="legend-box locked"></i>Locked</span>
+                    <span><i class="legend-box booked"></i>Booked</span>
                   </div>
-                  <label class="toggle-switch" for="women-toggle">
-                    <input id="women-toggle" type="checkbox" />
-                    <span class="toggle-slider"></span>
+                  <div class="bus-seat-frame">
+                    <div class="bus-front">Driver</div>
+                    <div id="seat-grid" class="seats"></div>
+                  </div>
+                </div>
+
+                <form id="booking-form" class="traveller-card hidden">
+                  <h4>Traveller Details</h4>
+                  <label>Seat Number<input id="book-seat" type="number" readonly /></label>
+                  <label>Passenger Name<input id="book-name" type="text" required /></label>
+                  <label>Passenger Phone<input id="book-phone" type="text" required /></label>
+                  <label>Payment Mode
+                    <select id="book-payment">
+                      <option value="PAY_ON_BOARD">PAY_ON_BOARD</option>
+                      <option value="ONLINE">ONLINE</option>
+                    </select>
                   </label>
+                  <button type="submit">Continue</button>
+                </form>
+              </div>
+              <div id="booking-status" class="summary"></div>
+            </section>
+
+            <section id="view-payment" class="flow-view hidden">
+              <div class="view-header-row">
+                <div>
+                  <p class="section-tag">Payment Page</p>
+                  <h3>Review and complete booking</h3>
+                  <p class="hint">ONLINE uses the mock gateway. PAY_ON_BOARD confirms without online capture.</p>
+                </div>
+                <button type="button" id="back-to-seats" class="ghost-btn">Back to seats</button>
+              </div>
+
+              <div class="payment-shell">
+                <div class="payment-summary-card">
+                  <h4>Trip Summary</h4>
+                  <div id="payment-summary" class="payment-summary-list"></div>
+                </div>
+
+                <div class="payment-action-card">
+                  <h4 id="payment-action-title">Payment Action</h4>
+                  <p id="payment-action-copy" class="hint">Create a payment session or confirm pay-on-board.</p>
+                  <button id="payment-action-btn" type="button">Continue</button>
+                  <div id="payment-status" class="summary"></div>
                 </div>
               </div>
+            </section>
 
-              <div class="search-action-wrap">
-                <button type="submit" class="search-buses-btn">🔍 Search buses</button>
+            <section id="view-confirmation" class="flow-view hidden">
+              <div class="confirmation-shell">
+                <p class="section-tag">Booking Confirmation Page</p>
+                <h3>Booking completed</h3>
+                <p class="hint">Your seat is confirmed. Details are below.</p>
+                <div id="confirmation-card" class="confirmation-card"></div>
+                <div class="confirmation-actions">
+                  <button type="button" id="book-another-btn">Book another trip</button>
+                </div>
               </div>
-            </form>
+            </section>
+          </div>
 
-            <div class="search-highlights">
-              <div class="highlight-card">
-                <span class="highlight-label">Tourism routes</span>
-                <strong id="tourism-count">0</strong>
-                <p>Dedicated Bihar sightseeing circuits.</p>
-              </div>
-              <div class="highlight-card">
-                <span class="highlight-label">Active route pairs</span>
-                <strong id="route-count">0</strong>
-                <p>Searchable intercity and tourism travel links.</p>
-              </div>
-              <div class="highlight-card">
-                <span class="highlight-label">Payment options</span>
-                <strong>2</strong>
-                <p>Pay on board or mock online checkout.</p>
+          <aside class="journey-sidebar">
+            <div class="side-card">
+              <p class="section-tag">Journey Snapshot</p>
+              <div id="journey-summary" class="journey-summary-list">
+                <div><span>Route</span><strong>Not selected</strong></div>
+                <div><span>Date</span><strong>Not selected</strong></div>
+                <div><span>Bus</span><strong>Not selected</strong></div>
+                <div><span>Seat</span><strong>Not selected</strong></div>
+                <div><span>Payment</span><strong>Not selected</strong></div>
               </div>
             </div>
-            <div id="search-status" class="summary"></div>
-          </section>
 
-          <section id="view-buses" class="flow-view hidden">
-            <div class="view-header-row">
+            <div class="side-card">
+              <p class="section-tag">Flow Notes</p>
+              <ul class="notes-list">
+                <li>Search results become the dedicated bus list page.</li>
+                <li>Seat view auto-refreshes while active for near-real-time availability.</li>
+                <li>ONLINE goes through lock, checkout, and verify before confirmation.</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Customer Access</p>
+            <h2>Register, login, and recover password</h2>
+          </div>
+        </div>
+        <div class="auth-grid">
+          <form id="register-form" class="form auth-form">
+            <h3>Register</h3>
+            <label>Name<input id="reg-name" type="text" autocomplete="name" required /></label>
+            <label>Email<input id="reg-email" type="email" autocomplete="email" required /></label>
+            <label>Password<input id="reg-password" type="password" autocomplete="new-password" minlength="6" required /></label>
+            <button type="submit">Create Account</button>
+          </form>
+
+          <form id="login-form" class="form auth-form">
+            <h3>Login</h3>
+            <label>Email<input id="login-email" type="email" autocomplete="email" required /></label>
+            <label>Password<input id="login-password" type="password" autocomplete="current-password" required /></label>
+            <button type="submit">Login</button>
+            <button id="forgot-toggle-btn" type="button" class="secondary">Forgot Password</button>
+            <button id="logout-btn" type="button" class="secondary">Logout</button>
+          </form>
+        </div>
+
+        <div id="forgot-password-panel" class="forgot-panel hidden">
+          <form id="forgot-password-form" class="form auth-form">
+            <h3>Forgot Password</h3>
+            <label>Email<input id="forgot-email" type="email" required /></label>
+            <button type="submit">Generate Reset Token</button>
+          </form>
+
+          <form id="reset-password-form" class="form auth-form">
+            <h3>Reset Password</h3>
+            <label>Reset Token<input id="reset-token" type="text" required /></label>
+            <label>New Password<input id="reset-new-password" type="password" minlength="6" required /></label>
+            <button type="submit">Update Password</button>
+          </form>
+        </div>
+        <div id="forgot-status" class="summary"></div>
+        <div id="auth-status" class="summary">Not logged in.</div>
+      </section>
+
+      <section class="card">
+        <div class="section-head section-head-split">
+          <div>
+            <p class="section-tag">Customer History</p>
+            <h2>My bookings</h2>
+          </div>
+          <div class="section-actions">
+            <label class="inline-control">Status
+              <select id="my-bookings-status">
+                <option value="">ALL</option>
+                <option value="BOOKED">BOOKED</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+            </label>
+            <button id="my-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
+          </div>
+        </div>
+        <div id="my-bookings-summary" class="summary muted-summary">Login to see your bookings.</div>
+        <div id="my-bookings" class="list"></div>
+        <div id="my-bookings-pagination" class="pagination-bar hidden"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Route Network</p>
+            <h2>Active routes</h2>
+          </div>
+        </div>
+        <div id="route-list" class="list"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Tourism</p>
+            <h2>Tourism in Bihar (AC Fleet)</h2>
+            <p class="hint">Dedicated tourism circuits with 5 AC buses covering major Bihar destinations.</p>
+          </div>
+        </div>
+        <div id="tourism-route-list" class="list"></div>
+      </section>
+
+      <section id="admin-panel" class="card full-width hidden">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Admin Console</p>
+            <h2>Operations dashboard</h2>
+          </div>
+        </div>
+        <div id="admin-metrics" class="metrics-grid"></div>
+        <div class="dashboard-grid">
+          <section class="panel-card">
+            <div class="section-head section-head-split section-head-tight">
               <div>
-                <p class="section-tag">Bus List Page</p>
-                <h3>Available buses</h3>
-                <p id="bus-list-copy" class="hint">Pick one schedule to open seat selection.</p>
+                <p class="section-tag">Booking Trends</p>
+                <h3>Recent booking activity</h3>
               </div>
-              <button type="button" id="back-to-search" class="ghost-btn">Back to search</button>
-            </div>
-            <div id="schedule-list" class="bus-list-grid"></div>
-          </section>
-
-          <section id="view-seats" class="flow-view hidden">
-            <div class="view-header-row">
-              <div>
-                <p class="section-tag">Seat Selection Page</p>
-                <h3>Select a seat and traveller details</h3>
-                <p class="hint">Seat data refreshes automatically while this page is open.</p>
-              </div>
-              <button type="button" id="back-to-buses" class="ghost-btn">Change bus</button>
-            </div>
-
-            <div class="seat-layout-shell">
-              <div class="seat-stage">
-                <div id="seat-summary" class="summary">No schedule selected.</div>
-                <div class="seat-legend">
-                  <span><i class="legend-box available"></i>Available</span>
-                  <span><i class="legend-box selected"></i>Selected</span>
-                  <span><i class="legend-box locked"></i>Locked</span>
-                  <span><i class="legend-box booked"></i>Booked</span>
-                </div>
-                <div class="bus-seat-frame">
-                  <div class="bus-front">Driver</div>
-                  <div id="seat-grid" class="seats"></div>
-                </div>
-              </div>
-
-              <form id="booking-form" class="traveller-card hidden">
-                <h4>Traveller Details</h4>
-                <label>Seat Number<input id="book-seat" type="number" readonly /></label>
-                <label>Passenger Name<input id="book-name" type="text" required /></label>
-                <label>Passenger Phone<input id="book-phone" type="text" required /></label>
-                <label>Payment Mode
-                  <select id="book-payment">
-                    <option value="PAY_ON_BOARD">PAY_ON_BOARD</option>
-                    <option value="ONLINE">ONLINE</option>
+              <div class="section-actions">
+                <label class="inline-control">Window
+                  <select id="admin-trend-range">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
                   </select>
                 </label>
-                <button type="submit">Continue</button>
-              </form>
+                <button id="admin-trends-refresh" type="button" class="secondary compact-btn">Refresh</button>
+              </div>
             </div>
-            <div id="booking-status" class="summary"></div>
+            <div id="admin-trend-summary" class="trend-summary-grid"></div>
+            <div id="admin-trend-chart" class="trend-chart"></div>
           </section>
 
-          <section id="view-payment" class="flow-view hidden">
-            <div class="view-header-row">
+          <section class="panel-card">
+            <div class="section-head section-head-split section-head-tight">
               <div>
-                <p class="section-tag">Payment Page</p>
-                <h3>Review and complete booking</h3>
-                <p class="hint">ONLINE uses the mock gateway. PAY_ON_BOARD confirms without online capture.</p>
+                <p class="section-tag">Monitoring</p>
+                <h3>System status</h3>
               </div>
-              <button type="button" id="back-to-seats" class="ghost-btn">Back to seats</button>
+              <button id="admin-monitor-refresh" type="button" class="secondary compact-btn">Refresh</button>
             </div>
-
-            <div class="payment-shell">
-              <div class="payment-summary-card">
-                <h4>Trip Summary</h4>
-                <div id="payment-summary" class="payment-summary-list"></div>
-              </div>
-
-              <div class="payment-action-card">
-                <h4 id="payment-action-title">Payment Action</h4>
-                <p id="payment-action-copy" class="hint">Create a payment session or confirm pay-on-board.</p>
-                <button id="payment-action-btn" type="button">Continue</button>
-                <div id="payment-status" class="summary"></div>
-              </div>
-            </div>
-          </section>
-
-          <section id="view-confirmation" class="flow-view hidden">
-            <div class="confirmation-shell">
-              <p class="section-tag">Booking Confirmation Page</p>
-              <h3>Booking completed</h3>
-              <p class="hint">This is the final confirmation step of the Stage 6 journey.</p>
-              <div id="confirmation-card" class="confirmation-card"></div>
-              <div class="confirmation-actions">
-                <button type="button" id="book-another-btn">Book another trip</button>
-              </div>
-            </div>
+            <div id="admin-monitoring" class="monitor-grid"></div>
           </section>
         </div>
+        <div class="admin-grid">
+          <form id="admin-route-form" class="form admin-form">
+            <h3>Create Route</h3>
+            <label>Source<input id="admin-route-source" type="text" required /></label>
+            <label>Destination<input id="admin-route-destination" type="text" required /></label>
+            <label>Distance KM<input id="admin-route-distance" type="number" min="1" required /></label>
+            <button type="submit">Add Route</button>
+          </form>
 
-        <aside class="journey-sidebar">
-          <div class="side-card">
-            <p class="section-tag">Journey Snapshot</p>
-            <div id="journey-summary" class="journey-summary-list">
-              <div><span>Route</span><strong>Not selected</strong></div>
-              <div><span>Date</span><strong>Not selected</strong></div>
-              <div><span>Bus</span><strong>Not selected</strong></div>
-              <div><span>Seat</span><strong>Not selected</strong></div>
-              <div><span>Payment</span><strong>Not selected</strong></div>
-            </div>
+          <form id="admin-bus-form" class="form admin-form">
+            <h3>Create Bus</h3>
+            <label>Bus Number<input id="admin-bus-number" type="text" required /></label>
+            <label>Bus Type
+              <select id="admin-bus-type">
+                <option value="NON_AC">NON_AC</option>
+                <option value="AC">AC</option>
+                <option value="SEATER">SEATER</option>
+                <option value="SLEEPER">SLEEPER</option>
+              </select>
+            </label>
+            <label>Total Seats<input id="admin-bus-seats" type="number" min="1" required /></label>
+            <button type="submit">Add Bus</button>
+          </form>
+
+          <form id="admin-schedule-form" class="form admin-form">
+            <h3>Create Schedule</h3>
+            <label>Route ID<input id="admin-sch-route-id" type="number" min="1" required /></label>
+            <label>Bus ID<input id="admin-sch-bus-id" type="number" min="1" required /></label>
+            <label>Date<input id="admin-sch-date" type="date" required /></label>
+            <label>Departure<input id="admin-sch-departure" type="time" required /></label>
+            <label>Arrival<input id="admin-sch-arrival" type="time" required /></label>
+            <p class="admin-note">Fare auto-calculates from route distance: regular AC routes use Rs 3.00/km, regular non-AC routes use Rs 2.50/km, and tourism routes use Rs 5.00/km.</p>
+            <button type="submit">Add Schedule</button>
+          </form>
+        </div>
+        <div id="admin-status" class="summary"></div>
+        <div class="section-head section-head-split section-head-tight">
+          <div>
+            <p class="section-tag">Booking Dashboard</p>
+            <h3>All bookings</h3>
           </div>
-
-          <div class="side-card">
-            <p class="section-tag">Flow Notes</p>
-            <ul class="notes-list">
-              <li>Search results become the dedicated bus list page.</li>
-              <li>Seat view auto-refreshes while active for near-real-time availability.</li>
-              <li>ONLINE goes through lock, checkout, and verify before confirmation.</li>
-            </ul>
+          <div class="section-actions">
+            <label class="inline-control">Status
+              <select id="admin-bookings-status">
+                <option value="">ALL</option>
+                <option value="BOOKED">BOOKED</option>
+                <option value="CANCELLED">CANCELLED</option>
+                <option value="LOCKED">LOCKED</option>
+              </select>
+            </label>
+            <button id="admin-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
           </div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <p class="section-tag">Customer Access</p>
-          <h2>Register, login, and recover password</h2>
         </div>
-      </div>
-      <div class="auth-grid">
-        <form id="register-form" class="form auth-form">
-          <h3>Register</h3>
-          <label>Name<input id="reg-name" type="text" autocomplete="name" required /></label>
-          <label>Email<input id="reg-email" type="email" autocomplete="email" required /></label>
-          <label>Password<input id="reg-password" type="password" autocomplete="new-password" minlength="6" required /></label>
-          <button type="submit">Create Account</button>
-        </form>
+        <div id="admin-bookings-summary" class="summary muted-summary">Admin bookings will appear here.</div>
+        <div id="admin-bookings" class="list"></div>
+        <div id="admin-bookings-pagination" class="pagination-bar hidden"></div>
+      </section>
 
-        <form id="login-form" class="form auth-form">
-          <h3>Login</h3>
-          <label>Email<input id="login-email" type="email" autocomplete="email" required /></label>
-          <label>Password<input id="login-password" type="password" autocomplete="current-password" required /></label>
-          <button type="submit">Login</button>
-          <button id="forgot-toggle-btn" type="button" class="secondary">Forgot Password</button>
-          <button id="logout-btn" type="button" class="secondary">Logout</button>
-        </form>
-      </div>
+    </div><!-- /tab-bus -->
 
-      <div id="forgot-password-panel" class="forgot-panel hidden">
-        <form id="forgot-password-form" class="form auth-form">
-          <h3>Forgot Password</h3>
-          <label>Email<input id="forgot-email" type="email" required /></label>
-          <button type="submit">Generate Reset Token</button>
-        </form>
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!--  TAB 2 — Marriage Booking                                   -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div id="tab-marriage" class="tab-panel full-width hidden">
 
-        <form id="reset-password-form" class="form auth-form">
-          <h3>Reset Password</h3>
-          <label>Reset Token<input id="reset-token" type="text" required /></label>
-          <label>New Password<input id="reset-new-password" type="password" minlength="6" required /></label>
-          <button type="submit">Update Password</button>
-        </form>
-      </div>
-      <div id="forgot-status" class="summary"></div>
-      <div id="auth-status" class="summary">Not logged in.</div>
-    </section>
-
-    <section class="card">
-      <div class="section-head section-head-split">
-        <div>
-          <p class="section-tag">Customer History</p>
-          <h2>My bookings</h2>
+      <section class="card full-width marriage-section">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Special Charter Service</p>
+            <h2>Marriage Bus Booking</h2>
+            <p class="hint">Dedicated overnight charter for baraat and wedding parties. Available March–June &amp; October–December. Maximum 175 km.</p>
+          </div>
+          <div class="marriage-season-pills">
+            <span class="season-pill season-active">Mar</span>
+            <span class="season-pill season-active">Apr</span>
+            <span class="season-pill season-active">May</span>
+            <span class="season-pill season-active">Jun</span>
+            <span class="season-pill">Jul</span>
+            <span class="season-pill">Aug</span>
+            <span class="season-pill">Sep</span>
+            <span class="season-pill season-active">Oct</span>
+            <span class="season-pill season-active">Nov</span>
+            <span class="season-pill season-active">Dec</span>
+            <span class="season-pill">Jan</span>
+            <span class="season-pill">Feb</span>
+          </div>
         </div>
-        <div class="section-actions">
-          <label class="inline-control">Status
-            <select id="my-bookings-status">
-              <option value="">ALL</option>
-              <option value="BOOKED">BOOKED</option>
-              <option value="CANCELLED">CANCELLED</option>
-            </select>
-          </label>
-          <button id="my-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
-        </div>
-      </div>
-      <div id="my-bookings-summary" class="summary muted-summary">Login to see your bookings.</div>
-      <div id="my-bookings" class="list"></div>
-      <div id="my-bookings-pagination" class="pagination-bar hidden"></div>
-    </section>
 
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <p class="section-tag">Route Network</p>
-          <h2>Active routes</h2>
-        </div>
-      </div>
-      <div id="route-list" class="list"></div>
-    </section>
-
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <p class="section-tag">Tourism</p>
-          <h2>Tourism in Bihar (AC Fleet)</h2>
-          <p class="hint">Dedicated tourism circuits with 5 AC buses covering major Bihar destinations.</p>
-        </div>
-      </div>
-      <div id="tourism-route-list" class="list"></div>
-    </section>
-
-    <section id="admin-panel" class="card full-width hidden">
-      <div class="section-head">
-        <div>
-          <p class="section-tag">Admin Console</p>
-          <h2>Operations dashboard</h2>
-        </div>
-      </div>
-      <div id="admin-metrics" class="metrics-grid"></div>
-      <div class="dashboard-grid">
-        <section class="panel-card">
-          <div class="section-head section-head-split section-head-tight">
+        <div class="marriage-info-strip">
+          <div class="marriage-info-item">
+            <span class="marriage-info-icon">🕖</span>
             <div>
-              <p class="section-tag">Booking Trends</p>
-              <h3>Recent booking activity</h3>
-            </div>
-            <div class="section-actions">
-              <label class="inline-control">Window
-                <select id="admin-trend-range">
-                  <option value="7">Last 7 days</option>
-                  <option value="14">Last 14 days</option>
-                  <option value="30">Last 30 days</option>
-                </select>
-              </label>
-              <button id="admin-trends-refresh" type="button" class="secondary compact-btn">Refresh</button>
+              <strong>Timing</strong>
+              <p>7:00 PM departure – 7:00 AM arrival</p>
             </div>
           </div>
-          <div id="admin-trend-summary" class="trend-summary-grid"></div>
-          <div id="admin-trend-chart" class="trend-chart"></div>
-        </section>
-
-        <section class="panel-card">
-          <div class="section-head section-head-split section-head-tight">
+          <div class="marriage-info-item">
+            <span class="marriage-info-icon">📍</span>
             <div>
-              <p class="section-tag">Monitoring</p>
-              <h3>System status</h3>
+              <strong>Max Distance</strong>
+              <p>Up to 175 km one way</p>
             </div>
-            <button id="admin-monitor-refresh" type="button" class="secondary compact-btn">Refresh</button>
           </div>
-          <div id="admin-monitoring" class="monitor-grid"></div>
-        </section>
-      </div>
-      <div class="admin-grid">
-        <form id="admin-route-form" class="form admin-form">
-          <h3>Create Route</h3>
-          <label>Source<input id="admin-route-source" type="text" required /></label>
-          <label>Destination<input id="admin-route-destination" type="text" required /></label>
-          <label>Distance KM<input id="admin-route-distance" type="number" min="1" required /></label>
-          <button type="submit">Add Route</button>
-        </form>
-
-        <form id="admin-bus-form" class="form admin-form">
-          <h3>Create Bus</h3>
-          <label>Bus Number<input id="admin-bus-number" type="text" required /></label>
-          <label>Bus Type
-            <select id="admin-bus-type">
-              <option value="NON_AC">NON_AC</option>
-              <option value="AC">AC</option>
-              <option value="SEATER">SEATER</option>
-              <option value="SLEEPER">SLEEPER</option>
-            </select>
-          </label>
-          <label>Total Seats<input id="admin-bus-seats" type="number" min="1" required /></label>
-          <button type="submit">Add Bus</button>
-        </form>
-
-        <form id="admin-schedule-form" class="form admin-form">
-          <h3>Create Schedule</h3>
-          <label>Route ID<input id="admin-sch-route-id" type="number" min="1" required /></label>
-          <label>Bus ID<input id="admin-sch-bus-id" type="number" min="1" required /></label>
-          <label>Date<input id="admin-sch-date" type="date" required /></label>
-          <label>Departure<input id="admin-sch-departure" type="time" required /></label>
-          <label>Arrival<input id="admin-sch-arrival" type="time" required /></label>
-          <p class="admin-note">Fare auto-calculates from route distance: regular AC routes use Rs 3.00/km, regular non-AC routes use Rs 2.50/km, and tourism routes use Rs 5.00/km.</p>
-          <button type="submit">Add Schedule</button>
-        </form>
-      </div>
-      <div id="admin-status" class="summary"></div>
-      <div class="section-head section-head-split section-head-tight">
-        <div>
-          <p class="section-tag">Booking Dashboard</p>
-          <h3>All bookings</h3>
+          <div class="marriage-info-item">
+            <span class="marriage-info-icon">💰</span>
+            <div>
+              <strong>Starting Price</strong>
+              <p>Rs 10,000 per 100 km (negotiable)</p>
+            </div>
+          </div>
+          <div class="marriage-info-item">
+            <span class="marriage-info-icon">📅</span>
+            <div>
+              <strong>Season</strong>
+              <p>Mar–Jun &amp; Oct–Dec</p>
+            </div>
+          </div>
         </div>
-        <div class="section-actions">
-          <label class="inline-control">Status
-            <select id="admin-bookings-status">
-              <option value="">ALL</option>
-              <option value="BOOKED">BOOKED</option>
-              <option value="CANCELLED">CANCELLED</option>
-              <option value="LOCKED">LOCKED</option>
-            </select>
-          </label>
-          <button id="admin-bookings-refresh" type="button" class="secondary compact-btn">Refresh</button>
+
+        <div class="marriage-grid">
+          <div class="marriage-calculator card-inset">
+            <h3>Fare Estimator</h3>
+            <p class="hint">Enter the one-way distance to see the price range.</p>
+            <div class="calculator-row">
+              <label for="calc-distance">Distance (km)</label>
+              <input id="calc-distance" type="number" min="1" max="175" placeholder="e.g. 120" />
+            </div>
+            <div id="calc-result" class="calc-result hidden">
+              <div class="calc-range-label">Estimated fare range</div>
+              <div class="calc-range">
+                <span id="calc-min"></span>
+                <span class="calc-dash">–</span>
+                <span id="calc-max"></span>
+              </div>
+              <p class="calc-note">Final price is negotiable. Submit an inquiry for a confirmed quote.</p>
+            </div>
+          </div>
+
+          <form id="marriage-inquiry-form" class="form marriage-form card-inset">
+            <h3>Submit an Inquiry</h3>
+            <label>Your Name <input id="mar-name" type="text" required placeholder="Full name" /></label>
+            <label>Phone Number <input id="mar-phone" type="tel" required placeholder="10-digit mobile number" /></label>
+            <label>Pickup Location <input id="mar-pickup" type="text" required placeholder="Village / city of pickup" /></label>
+            <label>Drop Location <input id="mar-drop" type="text" required placeholder="Destination village / city" /></label>
+            <label>Distance (km)
+              <input id="mar-distance" type="number" min="1" max="175" required placeholder="Approximate one-way distance" />
+            </label>
+            <label>Wedding Date
+              <input id="mar-date" type="date" required />
+              <span class="field-hint">Must be in Mar–Jun or Oct–Dec</span>
+            </label>
+            <label>Additional Message <textarea id="mar-message" rows="3" placeholder="Bus type preference, number of passengers, special requirements…"></textarea></label>
+            <button type="submit">Submit Inquiry</button>
+            <div id="marriage-status" class="summary"></div>
+          </form>
         </div>
-      </div>
-      <div id="admin-bookings-summary" class="summary muted-summary">Admin bookings will appear here.</div>
-      <div id="admin-bookings" class="list"></div>
-      <div id="admin-bookings-pagination" class="pagination-bar hidden"></div>
-    </section>
+      </section>
+
+      <section id="admin-marriage-panel" class="card full-width hidden">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Admin Console — Marriage</p>
+            <h3>Marriage Booking Inquiries</h3>
+          </div>
+          <button id="admin-marriage-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
+        <div id="admin-marriage-list" class="list"></div>
+      </section>
+
+    </div><!-- /tab-marriage -->
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!--  TAB 3 — Tourism Booking                                    -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div id="tab-tourism" class="tab-panel full-width hidden">
+
+      <section class="card full-width tourism-section">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Bihar Tourism Charter</p>
+            <h2>Tourism Bus Booking</h2>
+            <p class="hint">AC charter bus for Bihar's top pilgrimage and heritage circuits. Departs from Patna. Rs 5/km, group up to 36 passengers.</p>
+          </div>
+        </div>
+
+        <!-- Circuit Cards -->
+        <div class="circuit-grid">
+          <div class="circuit-card" data-circuit="Bodh Gaya" data-km="125">
+            <div class="circuit-icon">🕌</div>
+            <div class="circuit-info">
+              <strong>Bodh Gaya</strong>
+              <span class="circuit-km">125 km</span>
+            </div>
+            <p class="circuit-desc">The holiest Buddhist site — where the Buddha attained enlightenment. Mahabodhi Temple UNESCO heritage.</p>
+            <div class="circuit-fare">Rs 625 / seat</div>
+            <button type="button" class="circuit-select-btn" data-circuit="Bodh Gaya" data-km="125">Select Circuit</button>
+          </div>
+
+          <div class="circuit-card" data-circuit="Rajgir" data-km="100">
+            <div class="circuit-icon">⛰️</div>
+            <div class="circuit-info">
+              <strong>Rajgir</strong>
+              <span class="circuit-km">100 km</span>
+            </div>
+            <p class="circuit-desc">Ancient capital of Magadha empire. Vishwa Shanti Stupa, Gridhrakuta Hill, and hot springs.</p>
+            <div class="circuit-fare">Rs 500 / seat</div>
+            <button type="button" class="circuit-select-btn" data-circuit="Rajgir" data-km="100">Select Circuit</button>
+          </div>
+
+          <div class="circuit-card" data-circuit="Nalanda" data-km="95">
+            <div class="circuit-icon">📚</div>
+            <div class="circuit-info">
+              <strong>Nalanda</strong>
+              <span class="circuit-km">95 km</span>
+            </div>
+            <p class="circuit-desc">Ruins of the world's oldest university. UNESCO World Heritage Site, Nalanda Archaeological Museum.</p>
+            <div class="circuit-fare">Rs 475 / seat</div>
+            <button type="button" class="circuit-select-btn" data-circuit="Nalanda" data-km="95">Select Circuit</button>
+          </div>
+
+          <div class="circuit-card" data-circuit="Vaishali" data-km="60">
+            <div class="circuit-icon">🏛️</div>
+            <div class="circuit-info">
+              <strong>Vaishali</strong>
+              <span class="circuit-km">60 km</span>
+            </div>
+            <p class="circuit-desc">Birthplace of Lord Mahavira and one of the world's first republics. Ashoka Pillar, Abhishek Pushkarini.</p>
+            <div class="circuit-fare">Rs 300 / seat</div>
+            <button type="button" class="circuit-select-btn" data-circuit="Vaishali" data-km="60">Select Circuit</button>
+          </div>
+
+          <div class="circuit-card" data-circuit="Pawapuri" data-km="95">
+            <div class="circuit-icon">🪷</div>
+            <div class="circuit-info">
+              <strong>Pawapuri</strong>
+              <span class="circuit-km">95 km</span>
+            </div>
+            <p class="circuit-desc">Sacred Jain pilgrimage — where Lord Mahavira attained nirvana. Jalmandir temple on a lotus lake.</p>
+            <div class="circuit-fare">Rs 475 / seat</div>
+            <button type="button" class="circuit-select-btn" data-circuit="Pawapuri" data-km="95">Select Circuit</button>
+          </div>
+        </div>
+
+        <!-- Booking Form -->
+        <div class="tourism-booking-grid">
+          <div class="tourism-info-panel card-inset">
+            <h3>Trip Details</h3>
+            <div class="tourism-detail-list">
+              <div class="tourism-detail-row">
+                <span class="td-icon">🚌</span>
+                <div><strong>Bus Type</strong><p>AC Coach — 36 seats</p></div>
+              </div>
+              <div class="tourism-detail-row">
+                <span class="td-icon">📍</span>
+                <div><strong>Departure</strong><p>Patna (as per schedule)</p></div>
+              </div>
+              <div class="tourism-detail-row">
+                <span class="td-icon">💰</span>
+                <div><strong>Rate</strong><p>Rs 5 per km (AC fleet)</p></div>
+              </div>
+              <div class="tourism-detail-row">
+                <span class="td-icon">👥</span>
+                <div><strong>Group Size</strong><p>1 to 36 passengers per bus</p></div>
+              </div>
+            </div>
+
+            <div id="tourism-calc-result" class="calc-result hidden" style="margin-top:18px">
+              <div class="calc-range-label">Selected Circuit</div>
+              <div id="tourism-calc-circuit" style="font-weight:700;font-size:1.1rem;color:var(--teal);text-align:center;margin-bottom:4px"></div>
+              <div class="calc-range-label" style="margin-top:8px">Fare per seat</div>
+              <div class="calc-range" style="font-size:1.4rem">
+                <span id="tourism-calc-fare"></span>
+              </div>
+              <p class="calc-note">Total for group = fare × group size</p>
+            </div>
+          </div>
+
+          <form id="tourism-inquiry-form" class="form tourism-form card-inset">
+            <h3>Book a Circuit</h3>
+            <label>Your Name <input id="tour-name" type="text" required placeholder="Full name" /></label>
+            <label>Phone Number <input id="tour-phone" type="tel" required placeholder="10-digit mobile number" /></label>
+            <label>Circuit / Destination
+              <select id="tour-circuit" required>
+                <option value="">— Select a circuit —</option>
+                <option value="Bodh Gaya" data-km="125">Bodh Gaya (125 km) — Rs 625/seat</option>
+                <option value="Rajgir"    data-km="100">Rajgir (100 km) — Rs 500/seat</option>
+                <option value="Nalanda"   data-km="95">Nalanda (95 km) — Rs 475/seat</option>
+                <option value="Vaishali"  data-km="60">Vaishali (60 km) — Rs 300/seat</option>
+                <option value="Pawapuri"  data-km="95">Pawapuri (95 km) — Rs 475/seat</option>
+              </select>
+            </label>
+            <label>Travel Date
+              <input id="tour-date" type="date" required />
+            </label>
+            <label>Group Size (passengers)
+              <input id="tour-group" type="number" min="1" max="36" required placeholder="Number of passengers (max 36)" />
+            </label>
+            <div id="tour-total-display" class="tour-total hidden">
+              <span class="tour-total-label">Estimated Total</span>
+              <span id="tour-total-amount" class="tour-total-amount"></span>
+            </div>
+            <label>Additional Message <textarea id="tour-message" rows="3" placeholder="Special requirements, pickup point details, accessibility needs…"></textarea></label>
+            <button type="submit">Submit Inquiry</button>
+            <div id="tourism-status" class="summary"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="admin-tourism-panel" class="card full-width hidden">
+        <div class="section-head">
+          <div>
+            <p class="section-tag">Admin Console — Tourism</p>
+            <h3>Tourism Booking Inquiries</h3>
+          </div>
+          <button id="admin-tourism-refresh" type="button" class="secondary compact-btn">Refresh</button>
+        </div>
+        <div id="admin-tourism-list" class="list"></div>
+      </section>
+
+    </div><!-- /tab-tourism -->
+
   </main>
 
   <script src="/config.js"></script>

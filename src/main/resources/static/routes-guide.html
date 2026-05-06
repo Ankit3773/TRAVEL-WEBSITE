@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Narayan Travels - Routes & Fares</title>
+  <link rel="icon" type="image/png" href="/logo-narayan-travels.png?v=2" />
+  <link rel="stylesheet" href="/styles.css?v=20260313-9" />
+</head>
+<body data-page="routes-guide">
+  <div class="bg-shape bg-shape-1"></div>
+  <div class="bg-shape bg-shape-2"></div>
+  <div class="bg-shape bg-shape-3"></div>
+
+  <header class="hero-shell">
+    <div class="hero-bar page-hero-bar">
+      <div class="brand-lockup">
+        <div class="logo-panel">
+          <img class="site-logo" src="/logo-narayan-travels.png?v=2" alt="Narayan Travels logo" />
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">Routes & Fares</p>
+          <h1>Understand where we run and how each trip is priced</h1>
+          <p class="subtitle">Explore regular commute corridors, Bihar tourism circuits, and the fare logic used across our network.</p>
+          <p class="hero-note">The route guide helps customers compare travel options before opening the booking engine.</p>
+        </div>
+      </div>
+      <div class="hero-actions page-cta-group">
+        <a class="ghost-btn" href="/results.html">Book a Trip</a>
+        <a class="ghost-btn" href="/help-center.html">Need Help</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero-shell hero-shell-nav">
+    <div class="site-nav-strip">
+      <a class="site-nav-link" href="/index.html">Home</a>
+      <a class="site-nav-link is-active" href="/routes-guide.html">Routes & Fares</a>
+      <a class="site-nav-link" href="/experience.html">Travel Experience</a>
+      <a class="site-nav-link" href="/help-center.html">Help Center</a>
+      <a class="site-nav-link" href="/results.html">Book Now</a>
+      <a class="site-nav-link" href="/login.html">Customer Login</a>
+    </div>
+  </section>
+
+  <main class="layout">
+    <section class="card full-width">
+      <div class="section-head">
+        <div>
+          <p class="section-tag">Network Snapshot</p>
+          <h2>Three travel modes, one booking system</h2>
+        </div>
+      </div>
+      <div class="feature-page-grid">
+        <article class="feature-page-card">
+          <p class="section-tag">Daily Commute</p>
+          <h3>Patna to nearby city corridors</h3>
+          <p>Designed for reliable daily movement with regular departures, simple fare rules, and quick booking steps.</p>
+        </article>
+        <article class="feature-page-card">
+          <p class="section-tag">Tourism Circuit</p>
+          <h3>AC-focused Bihar sightseeing routes</h3>
+          <p>Built for destinations like Bodh Gaya, Rajgir, Nalanda, Vaishali, and Pawapuri with premium positioning.</p>
+        </article>
+        <article class="feature-page-card">
+          <p class="section-tag">Flexible Search</p>
+          <h3>Results page supports fare and time filtering</h3>
+          <p>Customers can compare departure windows, filter by route type, and sort by fare or time before choosing seats.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card full-width">
+      <div class="section-head">
+        <div>
+          <p class="section-tag">Popular Corridors</p>
+          <h2>Core routes from Patna</h2>
+        </div>
+      </div>
+      <div class="story-grid">
+        <article class="story-card">
+          <h3>Patna to Gaya</h3>
+          <p>A high-demand route with regular departures and a strong mix of daily travel and tourism movement.</p>
+          <ul class="notes-list">
+            <li>Distance: 110 km</li>
+            <li>Strong option for daily and religious travel</li>
+            <li>Usually suited for morning departures</li>
+          </ul>
+        </article>
+        <article class="story-card">
+          <h3>Patna to Jehanabad</h3>
+          <p>A shorter intercity corridor built for repeat commuters who need straightforward availability and predictable timing.</p>
+          <ul class="notes-list">
+            <li>Distance: 50 km</li>
+            <li>Fast-moving weekday corridor</li>
+            <li>Good fit for working-day schedules</li>
+          </ul>
+        </article>
+        <article class="story-card">
+          <h3>Patna to Chapra</h3>
+          <p>A balanced corridor for family travel, city access, and route frequency throughout the day.</p>
+          <ul class="notes-list">
+            <li>Distance: 75 km</li>
+            <li>Multiple daytime departures</li>
+            <li>Useful for fare and time comparison filters</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="card full-width">
+      <div class="section-head section-head-split section-head-tight">
+        <div>
+          <p class="section-tag">Planner Desk</p>
+          <h2>Save, revisit, and compare routes before opening the booking engine</h2>
+          <p class="hint">This page now works like a route planning desk, not just a list of corridors.</p>
+        </div>
+        <div id="route-planner-status" class="summary muted-summary">Planner desk updates as you save routes and open route guides.</div>
+      </div>
+      <div class="planner-grid planner-grid-wide">
+        <article class="planner-panel">
+          <div class="section-head section-head-split section-head-tight">
+            <div>
+              <p class="section-tag">Saved + Recent</p>
+              <h3>Quick route memory</h3>
+            </div>
+            <div id="route-memory-status" class="summary muted-summary">No saved or recent routes yet.</div>
+          </div>
+          <div id="route-memory" class="planner-route-grid">
+            <div class="item muted">Saved and recent routes will appear here.</div>
+          </div>
+        </article>
+        <article class="planner-panel">
+          <div class="section-head section-head-split section-head-tight">
+            <div>
+              <p class="section-tag">Compare</p>
+              <h3>Line up up to three live routes</h3>
+            </div>
+            <div id="route-compare-status" class="summary muted-summary">Select compare on route cards below.</div>
+          </div>
+          <div id="route-compare" class="planner-route-grid">
+            <div class="item muted">Select compare on live route cards to build a route matrix here.</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card full-width">
+      <div class="section-head section-head-split section-head-tight">
+        <div>
+          <p class="section-tag">Route Spotlight</p>
+          <h2>Admin-managed route guidance</h2>
+        </div>
+        <div id="route-spotlight-status" class="summary muted-summary">Loading route spotlight...</div>
+      </div>
+      <div id="route-spotlight" class="route-spotlight-shell">
+        <div class="item muted">Select a live route card to view detailed guidance.</div>
+      </div>
+    </section>
+
+    <section class="card full-width">
+      <div class="section-head section-head-split section-head-tight">
+        <div>
+          <p class="section-tag">Live Directory</p>
+          <h2>Routes currently available in the system</h2>
+        </div>
+        <div id="route-directory-status" class="summary muted-summary">Loading live route cards...</div>
+      </div>
+      <div id="route-directory" class="route-directory-grid">
+        <div class="item muted">Live route cards will appear here.</div>
+      </div>
+    </section>
+
+    <section class="card full-width">
+      <div class="section-head">
+        <div>
+          <p class="section-tag">Fare Logic</p>
+          <h2>How the current system calculates fares</h2>
+        </div>
+      </div>
+      <div class="timeline-strip">
+        <article class="timeline-card">
+          <span class="timeline-step">01</span>
+          <h3>Regular AC</h3>
+          <p>Computed at approximately Rs 3 per km for AC city-to-city routes.</p>
+        </article>
+        <article class="timeline-card">
+          <span class="timeline-step">02</span>
+          <h3>Regular Non-AC</h3>
+          <p>Computed at approximately Rs 2.5 per km for standard commute routes.</p>
+        </article>
+        <article class="timeline-card">
+          <span class="timeline-step">03</span>
+          <h3>Tourism</h3>
+          <p>Computed at approximately Rs 5 per km for dedicated sightseeing circuits.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card full-width">
+      <div class="section-head">
+        <div>
+          <p class="section-tag">Next Step</p>
+          <h2>Open the booking engine when you are ready</h2>
+        </div>
+      </div>
+      <div class="cta-panel">
+        <p>Use the results page to compare buses by departure window, route type, and fare range before selecting your seat.</p>
+        <div class="page-cta-group">
+          <a class="ghost-btn" href="/results.html">Open results page</a>
+          <a class="ghost-btn" href="/index.html">Back to home</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-main">
+      <div class="footer-brand-col">
+        <div class="footer-logo-row">
+          <img src="/logo-narayan-travels.png?v=2" alt="Narayan Travels" class="footer-logo-img" />
+          <div class="footer-brand-text">
+            <strong>Narayan Travels</strong>
+            <small>Bihar's trusted bus partner</small>
+          </div>
+        </div>
+        <p class="footer-about">
+          Comfortable, affordable bus journeys across Bihar with real-time tracking, easy cancellation, and 24×7 support.
+        </p>
+        <div class="footer-socials">
+          <a href="#" aria-label="Facebook" class="footer-social">f</a>
+          <a href="#" aria-label="Twitter" class="footer-social">𝕏</a>
+          <a href="#" aria-label="Instagram" class="footer-social">●</a>
+          <a href="#" aria-label="YouTube" class="footer-social">▶</a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h5>Explore</h5>
+        <ul>
+          <li><a href="/index.html">Home</a></li>
+          <li><a href="/routes-guide.html">Routes &amp; Fares</a></li>
+          <li><a href="/experience.html">Travel Experience</a></li>
+          <li><a href="/results.html">Book Now</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>Support</h5>
+        <ul>
+          <li><a href="/help-center.html">Help Centre</a></li>
+          <li><a href="#">Cancellation Policy</a></li>
+          <li><a href="#">Refund Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-contact-col">
+        <h5>Get in touch</h5>
+        <ul>
+          <li class="footer-contact-row">
+            <span class="footer-contact-icon">👤</span>
+            <span class="footer-contact-text">
+              <small>Owner</small>
+              <strong>Niranjan Sharma</strong>
+            </span>
+          </li>
+          <li class="footer-contact-row">
+            <span class="footer-contact-icon">✉</span>
+            <a href="mailto:NARAYANtravels3290@gmail.com" class="footer-contact-text">
+              <small>Email us</small>
+              <strong>NARAYANtravels3290@gmail.com</strong>
+            </a>
+          </li>
+          <li class="footer-contact-row">
+            <span class="footer-contact-icon">☎</span>
+            <a href="tel:+919798802392" class="footer-contact-text">
+              <small>Call us</small>
+              <strong>+91 97988 02392</strong>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-copy">© 2026 Narayan Travels. All rights reserved.</p>
+      <p class="footer-warning-mini">All content, design, and code on this site are protected by copyright. Unauthorized use is prohibited.</p>
+    </div>
+  </footer>
+  <script src="/routes-guide.js?v=20260313-8"></script>
+</body>
+</html>

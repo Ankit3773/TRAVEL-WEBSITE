@@ -56,7 +56,9 @@ public class SecurityConfig {
                                 "/api/routes/tourism",
                                 "/api/buses",
                                 "/api/schedules",
-                                "/api/schedules/*/seats")
+                                "/api/schedules/*/seats",
+                                "/api/marriage/inquiries",
+                                "/api/tourism/inquiries")
                         .permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/bookings/**").hasAnyRole("ADMIN", "CUSTOMER")

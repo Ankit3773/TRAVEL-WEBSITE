@@ -15,6 +15,7 @@ import com.travel.travelapp.entity.PaymentGateway;
 import com.travel.travelapp.entity.Seat;
 import com.travel.travelapp.entity.PaymentMode;
 import com.travel.travelapp.entity.PaymentStatus;
+import com.travel.travelapp.entity.RouteReview;
 import com.travel.travelapp.entity.TripSchedule;
 import com.travel.travelapp.exception.BadRequestException;
 import com.travel.travelapp.exception.ResourceNotFoundException;
@@ -23,7 +24,9 @@ import com.travel.travelapp.repository.BookingRepository;
 import com.travel.travelapp.repository.BookingSeatRepository;
 import com.travel.travelapp.repository.SeatRepository;
 import com.travel.travelapp.repository.TripScheduleRepository;
+import com.travel.travelapp.repository.RouteReviewRepository;
 import com.travel.travelapp.repository.UserRepository;
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -57,6 +60,7 @@ public class BookingService {
     private final BookingSeatRepository bookingSeatRepository;
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
+    private final RouteReviewRepository routeReviewRepository;
 
     @Value("${app.booking.lock-minutes:5}")
     private long seatLockMinutes;
@@ -264,7 +268,7 @@ public class BookingService {
 
         booking.setPaymentStatus(PaymentStatus.PAID);
         booking.setPaymentGateway(booking.getPaymentGateway() == null ? configuredPaymentGateway : booking.getPaymentGateway());
-        booking.setPaymentReference(request.getGatewayPaymentReference().trim());
+        booking.setPaymentReference(request.getPaymentId().trim());
         booking.setPaidAt(now);
         return finalizeLockedBooking(booking);
     }
@@ -331,19 +335,15 @@ public class BookingService {
     public List<BookingHistoryResponse> getMyBookings(String userEmail) {
         purgeExpiredLocks(LocalDateTime.now());
         userRepository.findByEmailIgnoreCase(userEmail).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return bookingRepository
-                .findByBookedByUserEmailIgnoreCaseAndBookingStatusNotOrderByBookedAtDesc(userEmail, BookingStatus.LOCKED)
-                .stream()
-                .map(this::toHistoryResponse)
-                .toList();
+        List<Booking> bookings = bookingRepository
+                .findByBookedByUserEmailIgnoreCaseAndBookingStatusNotOrderByBookedAtDesc(userEmail, BookingStatus.LOCKED);
+        return toHistoryResponses(bookings);
     }
 
     @Transactional
     public List<BookingHistoryResponse> getAllBookingsForAdmin() {
         purgeExpiredLocks(LocalDateTime.now());
-        return bookingRepository.findByBookingStatusNotOrderByBookedAtDesc(BookingStatus.LOCKED).stream()
-                .map(this::toHistoryResponse)
-                .toList();
+        return toHistoryResponses(bookingRepository.findByBookingStatusNotOrderByBookedAtDesc(BookingStatus.LOCKED));
     }
 
     @Transactional
@@ -554,7 +554,7 @@ public class BookingService {
 
     private BookingPageResponse toPageResponse(Page<Booking> bookingsPage, int page, int size) {
         return BookingPageResponse.builder()
-                .items(bookingsPage.getContent().stream().map(this::toHistoryResponse).toList())
+                .items(toHistoryResponses(bookingsPage.getContent()))
                 .page(page)
                 .size(size)
                 .totalElements(bookingsPage.getTotalElements())
@@ -564,11 +564,32 @@ public class BookingService {
                 .build();
     }
 
+    private List<BookingHistoryResponse> toHistoryResponses(List<Booking> bookings) {
+        Map<Long, RouteReview> reviewByBookingId = routeReviewRepository.findByBookingIdIn(
+                        bookings.stream().map(Booking::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(review -> review.getBooking().getId(), review -> review));
+        return bookings.stream()
+                .map(booking -> toHistoryResponse(booking, reviewByBookingId.get(booking.getId())))
+                .toList();
+    }
+
     private BookingResponse toBookingResponse(Booking booking) {
         List<Integer> seatNumbers = extractActiveSeatNumbers(booking);
         return BookingResponse.builder()
                 .bookingId(booking.getId())
                 .tripScheduleId(booking.getTripSchedule().getId())
+                .travelDate(booking.getTripSchedule().getTravelDate())
+                .departureTime(booking.getTripSchedule().getDepartureTime())
+                .arrivalTime(booking.getTripSchedule().getArrivalTime())
+                .source(booking.getTripSchedule().getRoute().getSource())
+                .destination(booking.getTripSchedule().getRoute().getDestination())
+                .busNumber(booking.getTripSchedule().getBus().getBusNumber())
+                .busType(booking.getTripSchedule().getBus().getBusType().name())
+                .boardingPoint(booking.getTripSchedule().getBoardingPoint())
+                .boardingNotes(booking.getTripSchedule().getBoardingNotes())
+                .droppingPoint(booking.getTripSchedule().getDroppingPoint())
+                .droppingNotes(booking.getTripSchedule().getDroppingNotes())
                 .seatNumbers(seatNumbers)
                 .seatNumber(seatNumbers.isEmpty() ? null : seatNumbers.get(0))
                 .passengerName(booking.getPassengerName())
@@ -586,17 +607,23 @@ public class BookingService {
                 .build();
     }
 
-    private BookingHistoryResponse toHistoryResponse(Booking booking) {
+    private BookingHistoryResponse toHistoryResponse(Booking booking, RouteReview review) {
         List<Integer> seatNumbers = extractActiveSeatNumbers(booking);
         return BookingHistoryResponse.builder()
                 .bookingId(booking.getId())
                 .tripScheduleId(booking.getTripSchedule().getId())
+                .routeId(booking.getTripSchedule().getRoute().getId())
                 .travelDate(booking.getTripSchedule().getTravelDate())
                 .departureTime(booking.getTripSchedule().getDepartureTime())
                 .arrivalTime(booking.getTripSchedule().getArrivalTime())
                 .source(booking.getTripSchedule().getRoute().getSource())
                 .destination(booking.getTripSchedule().getRoute().getDestination())
                 .busNumber(booking.getTripSchedule().getBus().getBusNumber())
+                .busType(booking.getTripSchedule().getBus().getBusType().name())
+                .boardingPoint(booking.getTripSchedule().getBoardingPoint())
+                .boardingNotes(booking.getTripSchedule().getBoardingNotes())
+                .droppingPoint(booking.getTripSchedule().getDroppingPoint())
+                .droppingNotes(booking.getTripSchedule().getDroppingNotes())
                 .seatNumbers(seatNumbers)
                 .seatNumber(seatNumbers.isEmpty() ? null : seatNumbers.get(0))
                 .passengerName(booking.getPassengerName())
@@ -619,6 +646,13 @@ public class BookingService {
                 .bookedByUserId(booking.getBookedByUser().getId())
                 .bookedByName(booking.getBookedByUser().getName())
                 .bookedByEmail(booking.getBookedByUser().getEmail())
+                .reviewEligible(review != null || (
+                        booking.getBookingStatus().isBookedState()
+                                && !booking.getTripSchedule().getTravelDate().isAfter(LocalDate.now())))
+                .reviewId(review != null ? review.getId() : null)
+                .reviewRating(review != null ? review.getRating() : null)
+                .reviewTitle(review != null ? review.getTitle() : null)
+                .reviewComment(review != null ? review.getComment() : null)
                 .build();
     }
 

@@ -37,6 +37,15 @@ public class Route {
     @Column
     private Boolean tourismRoute = false;
 
+    @Column(length = 320)
+    private String description;
+
+    @Column(length = 600)
+    private String travelHighlights;
+
+    @Column(length = 600)
+    private String travelTips;
+
     @OneToMany(mappedBy = "route")
     @JsonIgnore
     private List<TripSchedule> schedules;

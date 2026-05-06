@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NARAYAN TRAVELS - Login</title>
+  <link rel="icon" type="image/png" href="/logo-narayan-travels.png?v=2" />
+  <link rel="stylesheet" href="/styles.css?v=20260313-9" />
+</head>
+<body data-page="login">
+  <div class="bg-shape bg-shape-1"></div>
+  <div class="bg-shape bg-shape-2"></div>
+  <div class="bg-shape bg-shape-3"></div>
+
+  <header class="hero-shell">
+    <div class="hero-bar">
+      <div class="brand-lockup">
+        <div class="logo-panel">
+          <img class="site-logo" src="/logo-narayan-travels.png?v=2" alt="Narayan Travels logo" />
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">Narayan Travels</p>
+          <h1>Customer Login and Account Access</h1>
+          <p class="subtitle">Sign in, create an account, or reset your password from one dedicated customer page.</p>
+          <p class="hero-note">Use your account to continue seat selection, review bookings, and manage future trips.</p>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <div class="admin-hero-actions">
+          <a class="ghost-btn admin-link-btn" href="/">Back to Home</a>
+          <a class="ghost-btn admin-link-btn" href="/admin.html">Admin Console</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout login-layout">
+    <section class="card login-auth-shell">
+      <div class="workflow-head login-shell-head">
+        <div>
+          <p class="section-tag">Account Access</p>
+          <h2>Welcome back</h2>
+        </div>
+        <div id="page-auth-status" class="flow-status login-flow-status">Enter your details to continue.</div>
+      </div>
+
+      <div id="guest-auth-shell" class="login-panels">
+        <div class="account-menu-tabs login-tabs">
+          <button type="button" class="account-menu-tab active" data-login-panel-tab="login">Login</button>
+          <button type="button" class="account-menu-tab" data-login-panel-tab="signup">Sign Up</button>
+          <button type="button" class="account-menu-tab" data-login-panel-tab="reset">Reset</button>
+        </div>
+
+        <section class="login-panel" data-login-panel="login">
+          <form id="page-login-form" class="form auth-form">
+            <h3>Login</h3>
+            <label>Email<input id="page-login-email" type="email" autocomplete="email" required /></label>
+            <label>Password<input id="page-login-password" type="password" autocomplete="current-password" required /></label>
+            <div class="account-form-actions">
+              <button type="submit">Login</button>
+              <button id="page-forgot-toggle-btn" type="button" class="secondary">Forgot Password</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="login-panel hidden" data-login-panel="signup">
+          <form id="page-register-form" class="form auth-form">
+            <h3>Create Account</h3>
+            <label>Name<input id="page-reg-name" type="text" autocomplete="name" required /></label>
+            <label>Email<input id="page-reg-email" type="email" autocomplete="email" required /></label>
+            <label>Password<input id="page-reg-password" type="password" autocomplete="new-password" minlength="6" required /></label>
+            <button type="submit">Create Account</button>
+          </form>
+        </section>
+
+        <section class="login-panel hidden" data-login-panel="reset">
+          <div class="forgot-panel login-reset-grid">
+            <form id="page-forgot-password-form" class="form auth-form">
+              <h3>Forgot Password</h3>
+              <label>Email<input id="page-forgot-email" type="email" autocomplete="email" required /></label>
+              <button type="submit">Generate Reset Token</button>
+            </form>
+
+            <form id="page-reset-password-form" class="form auth-form">
+              <h3>Reset Password</h3>
+              <label>Reset Token<input id="page-reset-token" type="text" required /></label>
+              <label>New Password<input id="page-reset-new-password" type="password" autocomplete="new-password" minlength="6" required /></label>
+              <button type="submit">Update Password</button>
+            </form>
+          </div>
+
+          <div id="page-forgot-status" class="summary"></div>
+        </section>
+      </div>
+
+      <section id="login-page-user-card" class="login-user-shell hidden">
+        <div class="account-user-card login-user-card">
+          <p class="section-tag">Signed In</p>
+          <h3 id="page-user-heading">You are already logged in.</h3>
+          <p id="page-user-copy" class="hint">Use the actions below to continue.</p>
+          <div class="login-user-actions">
+            <a id="continue-link" class="ghost-btn admin-link-btn" href="/">Continue to Booking</a>
+            <button id="page-logout-btn" type="button" class="secondary">Logout</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="card login-side-shell">
+      <div class="section-head section-head-tight">
+        <div>
+          <p class="section-tag">Why Sign In</p>
+          <h2>Faster booking on repeat journeys</h2>
+        </div>
+      </div>
+
+      <div class="login-benefits-grid">
+        <article class="highlight-card login-benefit-card">
+          <span class="highlight-label">Trip control</span>
+          <strong>My Bookings</strong>
+          <p>Track confirmed seats, payment status, and cancellations without calling support.</p>
+        </article>
+
+        <article class="highlight-card login-benefit-card">
+          <span class="highlight-label">Faster checkout</span>
+          <strong>Saved access</strong>
+          <p>Login once and continue directly from seat selection to payment on the booking flow.</p>
+        </article>
+
+        <article class="highlight-card login-benefit-card">
+          <span class="highlight-label">Account recovery</span>
+          <strong>Self-service reset</strong>
+          <p>Generate a reset token and update your password from this page whenever access is blocked.</p>
+        </article>
+      </div>
+
+      <div class="login-help-card">
+        <p class="section-tag">Need Help</p>
+        <h3>Account access tips</h3>
+        <ul class="notes-list">
+          <li>Use the same email you used while booking or signing up.</li>
+          <li>New customer accounts are created with the `CUSTOMER` role automatically.</li>
+          <li>Admin access remains on the separate admin console.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/config.js"></script>
+  <script src="/login.js"></script>
+</body>
+</html>

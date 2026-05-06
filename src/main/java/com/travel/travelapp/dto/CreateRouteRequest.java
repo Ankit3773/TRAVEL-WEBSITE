@@ -3,6 +3,7 @@ package com.travel.travelapp.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,4 +20,15 @@ public class CreateRouteRequest {
     @NotNull
     @Min(1)
     private Integer distanceKm;
+
+    private Boolean tourismRoute;
+
+    @Size(max = 320)
+    private String description;
+
+    @Size(max = 600)
+    private String travelHighlights;
+
+    @Size(max = 600)
+    private String travelTips;
 }

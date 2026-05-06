@@ -17,12 +17,18 @@ import lombok.Getter;
 public class BookingHistoryResponse {
     private Long bookingId;
     private Long tripScheduleId;
+    private Long routeId;
     private LocalDate travelDate;
     private LocalTime departureTime;
     private LocalTime arrivalTime;
     private String source;
     private String destination;
     private String busNumber;
+    private String busType;
+    private String boardingPoint;
+    private String boardingNotes;
+    private String droppingPoint;
+    private String droppingNotes;
     private List<Integer> seatNumbers;
     private Integer seatNumber;
     private String passengerName;
@@ -42,4 +48,9 @@ public class BookingHistoryResponse {
     private Long bookedByUserId;
     private String bookedByName;
     private String bookedByEmail;
+    private Boolean reviewEligible;
+    private Long reviewId;
+    private Integer reviewRating;
+    private String reviewTitle;
+    private String reviewComment;
 }

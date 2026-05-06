@@ -8,6 +8,7 @@ import com.travel.travelapp.repository.BusRepository;
 import com.travel.travelapp.repository.RouteRepository;
 import com.travel.travelapp.repository.TripScheduleRepository;
 import com.travel.travelapp.util.FarePolicy;
+import com.travel.travelapp.util.RouteContentSupport;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -48,7 +49,7 @@ public class FleetSeedConfig {
                 // Daily commute fleet (15 buses total)
                 seedRoutePair("Gaya", 110, 3, 1, LocalTime.of(8, 0), 180, false);
                 seedRoutePair("Jehanabad", 50, 2, 1, LocalTime.of(7, 30), 105, false);
-                seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(7, 0), 150, false);
+                seedRoutePair("Chapra", 75, 2, 1, LocalTime.of(9, 30), 150, false);
                 seedRoutePair("Arrah", 65, 2, 1, LocalTime.of(8, 30), 105, false);
                 seedRoutePair("Bihta", 35, 1, 1, LocalTime.of(9, 0), 60, false);
 
@@ -80,6 +81,9 @@ public class FleetSeedConfig {
             boolean tourismBusNumbering) {
         Route outbound = getOrCreateRoute("Patna", city, distanceKm, tourismBusNumbering);
         Route inbound = getOrCreateRoute(city, "Patna", distanceKm, tourismBusNumbering);
+        int totalBusCount = acCount + nonAcCount;
+        int departureSpacingMinutes = departureSpacingMinutes(totalBusCount);
+        int busIndex = 0;
 
         for (int i = 0; i < acCount; i++) {
             String busNumber = tourismBusNumbering
@@ -87,28 +91,61 @@ public class FleetSeedConfig {
                     : String.format("NT-AC-%03d", acBusSeq++);
             Bus bus = getOrCreateBus(busNumber, BusType.AC, tourismBusNumbering ? 36 : 40);
             BigDecimal fare = FarePolicy.fareFor(outbound, bus);
-            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, fare);
+            seedBidirectionalSchedules(
+                    bus,
+                    outbound,
+                    inbound,
+                    outboundDeparture,
+                    departureSpacingMinutes,
+                    busIndex++,
+                    travelMinutes,
+                    fare);
         }
 
         for (int i = 0; i < nonAcCount; i++) {
             String busNumber = String.format("NT-NA-%03d", nonAcBusSeq++);
             Bus bus = getOrCreateBus(busNumber, BusType.NON_AC, 42);
             BigDecimal fare = FarePolicy.fareFor(outbound, bus);
-            seedBidirectionalSchedules(bus, outbound, inbound, outboundDeparture, travelMinutes, fare);
+            seedBidirectionalSchedules(
+                    bus,
+                    outbound,
+                    inbound,
+                    outboundDeparture,
+                    departureSpacingMinutes,
+                    busIndex++,
+                    travelMinutes,
+                    fare);
         }
+    }
+
+    static int departureSpacingMinutes(int totalBusCount) {
+        if (totalBusCount <= 1) {
+            return 0;
+        }
+        if (totalBusCount <= 3) {
+            return 180;
+        }
+        if (totalBusCount <= 5) {
+            return 90;
+        }
+        return 60;
     }
 
     private void seedBidirectionalSchedules(
             Bus bus,
             Route outbound,
             Route inbound,
-            LocalTime outboundDeparture,
+            LocalTime firstOutboundDeparture,
+            int departureSpacingMinutes,
+            int busIndex,
             int travelMinutes,
             BigDecimal fare) {
         for (int day = 1; day <= 3; day++) {
             LocalDate travelDate = LocalDate.now().plusDays(day);
+            LocalTime outboundDeparture = firstOutboundDeparture.plusMinutes((long) departureSpacingMinutes * busIndex);
             LocalTime outboundArrival = outboundDeparture.plusMinutes(travelMinutes);
-            LocalTime inboundDeparture = outboundArrival.plusHours(2);
+            LocalTime firstInboundDeparture = firstOutboundDeparture.plusMinutes(travelMinutes).plusHours(2);
+            LocalTime inboundDeparture = firstInboundDeparture.plusMinutes((long) departureSpacingMinutes * busIndex);
             LocalTime inboundArrival = inboundDeparture.plusMinutes(travelMinutes);
 
             createScheduleIfMissing(bus, outbound, travelDate, outboundDeparture, outboundArrival, fare);
@@ -123,6 +160,7 @@ public class FleetSeedConfig {
                     route.setDistanceKm(distanceKm);
                     route.setActive(true);
                     route.setTourismRoute(tourismRoute);
+                    applyRouteContentDefaults(route);
                     return routeRepository.save(route);
                 })
                 .orElseGet(() -> {
@@ -132,6 +170,7 @@ public class FleetSeedConfig {
                     route.setDistanceKm(distanceKm);
                     route.setActive(true);
                     route.setTourismRoute(tourismRoute);
+                    applyRouteContentDefaults(route);
                     return routeRepository.save(route);
                 });
     }
@@ -163,14 +202,21 @@ public class FleetSeedConfig {
             LocalTime departureTime,
             LocalTime arrivalTime,
             BigDecimal fare) {
-        var matchingSchedules = tripScheduleRepository.findAllByBusIdAndTravelDateAndRouteIdAndDepartureTimeOrderByIdAsc(
-                bus.getId(), travelDate, route.getId(), departureTime);
+        var matchingSchedules = tripScheduleRepository.findAllByBusIdAndTravelDateAndRouteIdOrderByDepartureTimeAsc(
+                bus.getId(), travelDate, route.getId());
         if (!matchingSchedules.isEmpty()) {
-            for (TripSchedule schedule : matchingSchedules) {
-                schedule.setArrivalTime(arrivalTime);
-                schedule.setBaseFare(fare);
-                schedule.setActive(true);
-                tripScheduleRepository.save(schedule);
+            TripSchedule schedule = matchingSchedules.get(0);
+            schedule.setDepartureTime(departureTime);
+            schedule.setArrivalTime(arrivalTime);
+            applyStopDefaults(schedule, route, departureTime, arrivalTime);
+            schedule.setBaseFare(fare);
+            schedule.setActive(true);
+            tripScheduleRepository.save(schedule);
+
+            for (int i = 1; i < matchingSchedules.size(); i++) {
+                TripSchedule duplicate = matchingSchedules.get(i);
+                duplicate.setActive(false);
+                tripScheduleRepository.save(duplicate);
             }
             return;
         }
@@ -181,6 +227,7 @@ public class FleetSeedConfig {
         schedule.setTravelDate(travelDate);
         schedule.setDepartureTime(departureTime);
         schedule.setArrivalTime(arrivalTime);
+        applyStopDefaults(schedule, route, departureTime, arrivalTime);
         schedule.setBaseFare(fare);
         schedule.setActive(true);
         tripScheduleRepository.save(schedule);
@@ -207,7 +254,45 @@ public class FleetSeedConfig {
     private void syncActiveScheduleFares() {
         for (TripSchedule schedule : tripScheduleRepository.findByActiveTrue()) {
             schedule.setBaseFare(FarePolicy.fareFor(schedule.getRoute(), schedule.getBus()));
+            applyStopDefaults(
+                    schedule,
+                    schedule.getRoute(),
+                    schedule.getDepartureTime(),
+                    schedule.getArrivalTime());
             tripScheduleRepository.save(schedule);
+        }
+    }
+
+    private void applyStopDefaults(
+            TripSchedule schedule,
+            Route route,
+            LocalTime departureTime,
+            LocalTime arrivalTime) {
+        if (schedule.getBoardingPoint() == null || schedule.getBoardingPoint().isBlank()) {
+            schedule.setBoardingPoint(route.getSource() + " Main Boarding Point");
+        }
+        if (schedule.getBoardingNotes() == null || schedule.getBoardingNotes().isBlank()) {
+            schedule.setBoardingNotes(
+                    "Reach by " + departureTime + " and wait near the main " + route.getSource() + " pickup side.");
+        }
+        if (schedule.getDroppingPoint() == null || schedule.getDroppingPoint().isBlank()) {
+            schedule.setDroppingPoint(route.getDestination() + " Main Drop Point");
+        }
+        if (schedule.getDroppingNotes() == null || schedule.getDroppingNotes().isBlank()) {
+            schedule.setDroppingNotes(
+                    "Expected arrival around " + arrivalTime + " near the main " + route.getDestination() + " arrival side.");
+        }
+    }
+
+    private void applyRouteContentDefaults(Route route) {
+        if (route.getDescription() == null || route.getDescription().isBlank()) {
+            route.setDescription(RouteContentSupport.defaultDescription(route));
+        }
+        if (route.getTravelHighlights() == null || route.getTravelHighlights().isBlank()) {
+            route.setTravelHighlights(RouteContentSupport.defaultHighlights(route));
+        }
+        if (route.getTravelTips() == null || route.getTravelTips().isBlank()) {
+            route.setTravelTips(RouteContentSupport.defaultTravelTips(route));
         }
     }
 }

@@ -42,6 +42,9 @@ public interface TripScheduleRepository extends JpaRepository<TripSchedule, Long
     List<TripSchedule> findAllByBusIdAndTravelDateAndRouteIdAndDepartureTimeOrderByIdAsc(
             Long busId, LocalDate travelDate, Long routeId, LocalTime departureTime);
 
+    List<TripSchedule> findAllByBusIdAndTravelDateAndRouteIdOrderByDepartureTimeAsc(
+            Long busId, LocalDate travelDate, Long routeId);
+
     boolean existsByBusIdAndTravelDateAndRouteIdAndDepartureTime(
             Long busId, LocalDate travelDate, Long routeId, LocalTime departureTime);
 

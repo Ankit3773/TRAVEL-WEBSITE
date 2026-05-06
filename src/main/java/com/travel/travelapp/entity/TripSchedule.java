@@ -44,8 +44,23 @@ public class TripSchedule {
     @Column(nullable = false)
     private LocalTime arrivalTime;
 
+    @Column(length = 120)
+    private String boardingPoint;
+
+    @Column(length = 160)
+    private String boardingNotes;
+
+    @Column(length = 120)
+    private String droppingPoint;
+
+    @Column(length = 160)
+    private String droppingNotes;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal baseFare;
+
+    @Column(nullable = false)
+    private Boolean fareOverridden = false;
 
     @Column(nullable = false)
     private Boolean active = true;

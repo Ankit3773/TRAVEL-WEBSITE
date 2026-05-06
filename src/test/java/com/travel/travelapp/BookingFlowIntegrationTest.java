@@ -11,12 +11,15 @@ import com.travel.travelapp.entity.PaymentStatus;
 import com.travel.travelapp.entity.Route;
 import com.travel.travelapp.entity.Seat;
 import com.travel.travelapp.entity.TripSchedule;
+import com.travel.travelapp.entity.UserRole;
 import com.travel.travelapp.repository.BookingRepository;
 import com.travel.travelapp.repository.BookingSeatRepository;
 import com.travel.travelapp.repository.BusRepository;
 import com.travel.travelapp.repository.RouteRepository;
+import com.travel.travelapp.repository.RouteReviewRepository;
 import com.travel.travelapp.repository.SeatRepository;
 import com.travel.travelapp.repository.TripScheduleRepository;
+import com.travel.travelapp.repository.UserRepository;
 import com.travel.travelapp.util.FarePolicy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,6 +42,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class BookingFlowIntegrationTest {
 
     @Autowired
@@ -80,10 +85,17 @@ class BookingFlowIntegrationTest {
     @Autowired
     private SeatRepository seatRepository;
 
+    @Autowired
+    private RouteReviewRepository routeReviewRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
     private Long tripScheduleId;
 
     @BeforeEach
     void setUp() {
+        routeReviewRepository.deleteAll();
         bookingSeatRepository.deleteAll();
         bookingRepository.deleteAll();
         tripScheduleRepository.deleteAll();
@@ -119,6 +131,10 @@ class BookingFlowIntegrationTest {
         schedule.setTravelDate(LocalDate.now().plusDays(1));
         schedule.setDepartureTime(LocalTime.of(8, 0));
         schedule.setArrivalTime(LocalTime.of(11, 0));
+        schedule.setBoardingPoint("Patna Gandhi Maidan Gate 2");
+        schedule.setBoardingNotes("Reach 20 minutes before departure near the main gate.");
+        schedule.setDroppingPoint("Gaya Bus Stand Platform 1");
+        schedule.setDroppingNotes("Crew confirms the exact drop lane shortly before arrival.");
         schedule.setBaseFare(new BigDecimal("200.00"));
         schedule.setActive(true);
         schedule = tripScheduleRepository.save(schedule);
@@ -276,7 +292,7 @@ class BookingFlowIntegrationTest {
 
         Map<String, Object> verifyPayload = new HashMap<>();
         verifyPayload.put("paymentSessionId", paymentSessionId);
-        verifyPayload.put("gatewayPaymentReference", "mock-payment-123");
+        verifyPayload.put("paymentId", "mock-payment-123");
 
         mockMvc.perform(post("/api/bookings/locks/{bookingId}/payments/verify", bookingId)
                         .header("Authorization", "Bearer " + customerToken)
@@ -339,6 +355,8 @@ class BookingFlowIntegrationTest {
                 .andExpect(jsonPath("$[0].id").value(tripScheduleId))
                 .andExpect(jsonPath("$[0].route.source").value("Patna"))
                 .andExpect(jsonPath("$[0].route.destination").value("Gaya"))
+                .andExpect(jsonPath("$[0].boardingPoint").value("Patna Gandhi Maidan Gate 2"))
+                .andExpect(jsonPath("$[0].droppingPoint").value("Gaya Bus Stand Platform 1"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -376,6 +394,59 @@ class BookingFlowIntegrationTest {
                 .andExpect(jsonPath("$[0].bookingId").value(bookingId))
                 .andExpect(jsonPath("$[0].bookingStatus").value(BookingStatus.BOOKED.name()))
                 .andExpect(jsonPath("$[0].seatNumbers[0]").value(6));
+    }
+
+    @Test
+    void customerCanReviewCompletedTripAndPublicReviewEndpointsExposeIt() throws Exception {
+        TripSchedule completedSchedule = tripScheduleRepository.findById(tripScheduleId).orElseThrow();
+        completedSchedule.setTravelDate(LocalDate.now().minusDays(1));
+        tripScheduleRepository.save(completedSchedule);
+
+        String customerToken = registerCustomerAndGetToken("review-flow-" + UUID.randomUUID() + "@example.com");
+        String bookingResponse = mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest(8))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long bookingId = objectMapper.readTree(bookingResponse).get("bookingId").asLong();
+
+        Map<String, Object> reviewPayload = new HashMap<>();
+        reviewPayload.put("bookingId", bookingId);
+        reviewPayload.put("rating", 5);
+        reviewPayload.put("title", "Smooth and reliable");
+        reviewPayload.put("comment", "Boarding was organized and the route timing felt dependable throughout the trip.");
+
+        mockMvc.perform(post("/api/reviews")
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reviewPayload)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bookingId").value(bookingId))
+                .andExpect(jsonPath("$.routeId").exists())
+                .andExpect(jsonPath("$.rating").value(5));
+
+        mockMvc.perform(get("/api/reviews/highlights"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].bookingId").value(bookingId))
+                .andExpect(jsonPath("$[0].comment").value("Boarding was organized and the route timing felt dependable throughout the trip."));
+
+        mockMvc.perform(get("/api/reviews/route/{routeId}", completedSchedule.getRoute().getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.routeId").value(completedSchedule.getRoute().getId()))
+                .andExpect(jsonPath("$.totalReviews").value(1))
+                .andExpect(jsonPath("$.averageRating").value(5.0))
+                .andExpect(jsonPath("$.reviews[0].bookingId").value(bookingId));
+
+        mockMvc.perform(get("/api/my-bookings")
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].routeId").value(completedSchedule.getRoute().getId()))
+                .andExpect(jsonPath("$[0].reviewId").exists())
+                .andExpect(jsonPath("$[0].reviewRating").value(5))
+                .andExpect(jsonPath("$[0].reviewEligible").value(true));
     }
 
     @Test
@@ -636,6 +707,41 @@ class BookingFlowIntegrationTest {
     }
 
     @Test
+    void firstAdminSetupShouldWorkOnlyWhenNoAdminExists() throws Exception {
+        userRepository.deleteAll(userRepository.findAll().stream()
+                .filter(user -> user.getRole() == UserRole.ADMIN)
+                .toList());
+
+        mockMvc.perform(get("/api/auth/admin-setup-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adminExists").value(false))
+                .andExpect(jsonPath("$.setupAllowed").value(true));
+
+        Map<String, Object> setupPayload = new HashMap<>();
+        setupPayload.put("name", "Owner");
+        setupPayload.put("email", "owner@example.com");
+        setupPayload.put("password", "Owner123!");
+
+        mockMvc.perform(post("/api/auth/setup-first-admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(setupPayload)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andExpect(jsonPath("$.email").value("owner@example.com"));
+
+        mockMvc.perform(get("/api/auth/admin-setup-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adminExists").value(true))
+                .andExpect(jsonPath("$.setupAllowed").value(false));
+
+        mockMvc.perform(post("/api/auth/setup-first-admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(setupPayload)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Admin account already exists"));
+    }
+
+    @Test
     void adminCrudEndpointsShouldSupportUpdateDeleteAndSeatAutoGeneration() throws Exception {
         String adminToken = loginAndGetToken("admin@narayantravels.in", "Admin123!");
 
@@ -643,6 +749,9 @@ class BookingFlowIntegrationTest {
         routePayload.put("source", "Patna");
         routePayload.put("destination", "Muzaffarpur");
         routePayload.put("distanceKm", 80);
+        routePayload.put("description", "A busy Patna to Muzaffarpur corridor for quick intercity travel.");
+        routePayload.put("travelHighlights", "Distance: 80 km\nReliable daily corridor\nUseful for same-day travel");
+        routePayload.put("travelTips", "Reach early for boarding\nCompare morning departures first");
 
         String routeResponse = mockMvc.perform(post("/api/admin/routes")
                         .header("Authorization", "Bearer " + adminToken)
@@ -650,6 +759,8 @@ class BookingFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(routePayload)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.destination").value("Muzaffarpur"))
+                .andExpect(jsonPath("$.description").value("A busy Patna to Muzaffarpur corridor for quick intercity travel."))
+                .andExpect(jsonPath("$.travelHighlights").value("Distance: 80 km\nReliable daily corridor\nUseful for same-day travel"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -660,6 +771,9 @@ class BookingFlowIntegrationTest {
         updateRoutePayload.put("destination", "Muzaffarpur");
         updateRoutePayload.put("distanceKm", 85);
         updateRoutePayload.put("tourismRoute", true);
+        updateRoutePayload.put("description", "A stronger premium route summary for Muzaffarpur travellers.");
+        updateRoutePayload.put("travelHighlights", "Distance: 85 km\nTourism-ready positioning\nFlexible day planning");
+        updateRoutePayload.put("travelTips", "Prefer AC options\nBoard 20 minutes before departure");
 
         mockMvc.perform(put("/api/admin/routes/{routeId}", routeId)
                         .header("Authorization", "Bearer " + adminToken)
@@ -667,7 +781,8 @@ class BookingFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(updateRoutePayload)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.distanceKm").value(85))
-                .andExpect(jsonPath("$.tourismRoute").value(true));
+                .andExpect(jsonPath("$.tourismRoute").value(true))
+                .andExpect(jsonPath("$.description").value("A stronger premium route summary for Muzaffarpur travellers."));
 
         mockMvc.perform(get("/api/admin/routes")
                         .header("Authorization", "Bearer " + adminToken))
@@ -718,6 +833,10 @@ class BookingFlowIntegrationTest {
         schedulePayload.put("travelDate", LocalDate.now().plusDays(3).toString());
         schedulePayload.put("departureTime", "09:00:00");
         schedulePayload.put("arrivalTime", "11:00:00");
+        schedulePayload.put("boardingPoint", "Patna Mithapur Stand Bay 4");
+        schedulePayload.put("boardingNotes", "Reach by 08:40 for platform confirmation.");
+        schedulePayload.put("droppingPoint", "Muzaffarpur Imlichatti Drop Zone");
+        schedulePayload.put("droppingNotes", "Final drop lane is shared by the driver before arrival.");
         schedulePayload.put("baseFare", new BigDecimal("260.00"));
 
         String scheduleResponse = mockMvc.perform(post("/api/admin/schedules")
@@ -725,7 +844,9 @@ class BookingFlowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(schedulePayload)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.baseFare").value(425.0))
+                .andExpect(jsonPath("$.baseFare").value(260.0))
+                .andExpect(jsonPath("$.boardingPoint").value("Patna Mithapur Stand Bay 4"))
+                .andExpect(jsonPath("$.droppingPoint").value("Muzaffarpur Imlichatti Drop Zone"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -737,6 +858,10 @@ class BookingFlowIntegrationTest {
         updateSchedulePayload.put("travelDate", LocalDate.now().plusDays(4).toString());
         updateSchedulePayload.put("departureTime", "10:00:00");
         updateSchedulePayload.put("arrivalTime", "12:30:00");
+        updateSchedulePayload.put("boardingPoint", "Patna ISBT Gate 1");
+        updateSchedulePayload.put("boardingNotes", "Reach by 09:40 for baggage tagging.");
+        updateSchedulePayload.put("droppingPoint", "Muzaffarpur Zero Mile Stop");
+        updateSchedulePayload.put("droppingNotes", "Drop side depends on traffic control instructions.");
         updateSchedulePayload.put("baseFare", new BigDecimal("280.00"));
 
         mockMvc.perform(put("/api/admin/schedules/{scheduleId}", scheduleId)
@@ -746,7 +871,9 @@ class BookingFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.departureTime").value("10:00:00"))
                 .andExpect(jsonPath("$.arrivalTime").value("12:30:00"))
-                .andExpect(jsonPath("$.baseFare").value(425.0));
+                .andExpect(jsonPath("$.boardingPoint").value("Patna ISBT Gate 1"))
+                .andExpect(jsonPath("$.droppingPoint").value("Muzaffarpur Zero Mile Stop"))
+                .andExpect(jsonPath("$.baseFare").value(280.0));
 
         mockMvc.perform(get("/api/admin/schedules")
                         .header("Authorization", "Bearer " + adminToken))

@@ -977,6 +977,7 @@ function updateAuthStatus() {
     elements.authStatus.textContent = 'Not logged in.';
     elements.bookingForm.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
+    document.getElementById('admin-marriage-panel').classList.add('hidden');
     elements.adminBookingsSummary.textContent = 'Admin login required.';
     elements.adminBookings.innerHTML = '<div class="item muted">Admin login required.</div>';
     elements.adminTrendSummary.innerHTML = '<div class="item muted">Admin login required.</div>';
@@ -990,8 +991,14 @@ function updateAuthStatus() {
   loadMyBookings();
   if (user.role === 'ADMIN') {
     elements.adminPanel.classList.remove('hidden');
+    document.getElementById('admin-marriage-panel').classList.remove('hidden');
+    document.getElementById('admin-tourism-panel').classList.remove('hidden');
     loadAdminDashboard();
+    loadAdminMarriageInquiries();
+    loadAdminTourismInquiries();
   } else {
+    document.getElementById('admin-marriage-panel').classList.add('hidden');
+    document.getElementById('admin-tourism-panel').classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
     elements.adminBookingsSummary.textContent = 'Admin login required.';
     elements.adminBookings.innerHTML = '<div class="item muted">Admin login required.</div>';
@@ -1403,6 +1410,326 @@ elements.dateContent.addEventListener('click', () => {
   }
   elements.travelDate.focus();
 });
+
+// ── Tab Navigation ───────────────────────────────────────────────────────────
+
+function switchMainTab(tabName) {
+  document.querySelectorAll('.main-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  ['bus', 'marriage', 'tourism'].forEach(tab => {
+    document.getElementById(`tab-${tab}`).classList.toggle('hidden', tab !== tabName);
+  });
+  if (tabName === 'marriage' && isAdmin()) loadAdminMarriageInquiries();
+  if (tabName === 'tourism'  && isAdmin()) loadAdminTourismInquiries();
+}
+
+document.querySelectorAll('.main-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchMainTab(btn.dataset.tab));
+});
+
+// ── Marriage Booking ─────────────────────────────────────────────────────────
+
+const MARRIAGE_MIN_RATE = 100;
+const MARRIAGE_MAX_RATE = 180;
+const MARRIAGE_MAX_KM   = 175;
+const MARRIAGE_VALID_MONTHS = new Set([3, 4, 5, 6, 10, 11, 12]);
+
+function marriageSeasonCheck(dateValue) {
+  if (!dateValue) return false;
+  const month = parseIsoDate(dateValue).getMonth() + 1;
+  return MARRIAGE_VALID_MONTHS.has(month);
+}
+
+function renderMarriageCalcResult(km) {
+  const result = document.getElementById('calc-result');
+  if (!km || km < 1 || km > MARRIAGE_MAX_KM) {
+    result.classList.add('hidden');
+    return;
+  }
+  document.getElementById('calc-min').textContent = `Rs ${(MARRIAGE_MIN_RATE * km).toLocaleString('en-IN')}`;
+  document.getElementById('calc-max').textContent = `Rs ${(MARRIAGE_MAX_RATE * km).toLocaleString('en-IN')}`;
+  result.classList.remove('hidden');
+}
+
+document.getElementById('calc-distance').addEventListener('input', event => {
+  renderMarriageCalcResult(Number(event.target.value));
+});
+
+document.getElementById('mar-distance').addEventListener('input', event => {
+  const km = Number(event.target.value);
+  document.getElementById('calc-distance').value = km || '';
+  renderMarriageCalcResult(km);
+});
+
+document.getElementById('mar-date').addEventListener('change', event => {
+  const hint = event.target.closest('label').querySelector('.field-hint');
+  const ok = marriageSeasonCheck(event.target.value);
+  if (hint) {
+    hint.textContent = ok
+      ? 'Date is within the available season.'
+      : 'Must be in Mar–Jun or Oct–Dec';
+    hint.style.color = ok ? 'var(--teal)' : 'var(--accent)';
+  }
+});
+
+document.getElementById('marriage-inquiry-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const statusEl = document.getElementById('marriage-status');
+  const dateValue = document.getElementById('mar-date').value;
+
+  if (!marriageSeasonCheck(dateValue)) {
+    statusEl.textContent = 'Wedding date must fall in March–June or October–December.';
+    statusEl.className = 'summary status-err';
+    return;
+  }
+
+  const distance = Number(document.getElementById('mar-distance').value);
+  if (distance > MARRIAGE_MAX_KM) {
+    statusEl.textContent = `Maximum distance is ${MARRIAGE_MAX_KM} km.`;
+    statusEl.className = 'summary status-err';
+    return;
+  }
+
+  const payload = {
+    contactName:    document.getElementById('mar-name').value.trim(),
+    contactPhone:   document.getElementById('mar-phone').value.trim(),
+    pickupLocation: document.getElementById('mar-pickup').value.trim(),
+    dropLocation:   document.getElementById('mar-drop').value.trim(),
+    distanceKm:     distance,
+    weddingDate:    dateValue,
+    message:        document.getElementById('mar-message').value.trim() || null
+  };
+
+  statusEl.textContent = 'Submitting inquiry…';
+  statusEl.className = 'summary';
+
+  try {
+    const res = await api('/api/marriage/inquiries', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    statusEl.textContent =
+      `Inquiry #${res.id} submitted! We will call you on ${res.contactPhone} to confirm. ` +
+      `Estimated fare: Rs ${res.estimatedMinFare.toLocaleString('en-IN')} – Rs ${res.estimatedMaxFare.toLocaleString('en-IN')} (negotiable).`;
+    statusEl.className = 'summary status-ok';
+    event.target.reset();
+    document.getElementById('calc-result').classList.add('hidden');
+    if (isAdmin()) loadAdminMarriageInquiries();
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.className = 'summary status-err';
+  }
+});
+
+function renderAdminMarriageInquiries(inquiries) {
+  const listEl = document.getElementById('admin-marriage-list');
+  if (!inquiries.length) {
+    listEl.innerHTML = '<div class="item muted">No marriage inquiries yet.</div>';
+    return;
+  }
+  listEl.innerHTML = inquiries.map(inq => `
+    <div class="item">
+      <div class="row">
+        <strong>${inq.pickupLocation} → ${inq.dropLocation}</strong>
+        <span class="info-pill marriage-pill">${inq.status}</span>
+      </div>
+      <div class="row muted">
+        <span>${inq.contactName} | ${inq.contactPhone}</span>
+        <span>${inq.distanceKm} km | Wedding ${formatDisplayDate(inq.weddingDate)}</span>
+      </div>
+      <div class="row muted">
+        <span>Rs ${Number(inq.estimatedMinFare).toLocaleString('en-IN')} – Rs ${Number(inq.estimatedMaxFare).toLocaleString('en-IN')} (negotiable)</span>
+        <span>Received ${formatDateTime(inq.createdAt)}</span>
+      </div>
+      ${inq.message ? `<div class="row muted"><span class="marriage-msg">"${inq.message}"</span></div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function loadAdminMarriageInquiries() {
+  if (!isAdmin()) return;
+  try {
+    const data = await api('/api/admin/marriage/inquiries', { auth: true });
+    renderAdminMarriageInquiries(data);
+  } catch (err) {
+    document.getElementById('admin-marriage-list').innerHTML =
+      `<div class="item muted">${err.message}</div>`;
+  }
+}
+
+document.getElementById('admin-marriage-refresh')?.addEventListener('click', () => {
+  loadAdminMarriageInquiries();
+});
+
+// ── Tourism Booking ───────────────────────────────────────────────────────────
+
+const TOURISM_RATE_PER_KM = 5;
+const TOURISM_CIRCUITS = {
+  'Bodh Gaya': 125,
+  'Rajgir':    100,
+  'Nalanda':    95,
+  'Vaishali':   60,
+  'Pawapuri':   95
+};
+
+function tourismFare(km) {
+  return TOURISM_RATE_PER_KM * km;
+}
+
+function updateTourismTotal() {
+  const circuitEl = document.getElementById('tour-circuit');
+  const groupEl   = document.getElementById('tour-group');
+  const totalBox  = document.getElementById('tour-total-display');
+  const totalAmt  = document.getElementById('tour-total-amount');
+
+  const km      = TOURISM_CIRCUITS[circuitEl?.value] || 0;
+  const group   = Number(groupEl?.value) || 0;
+  const perSeat = tourismFare(km);
+
+  if (km && group >= 1) {
+    totalAmt.textContent = `Rs ${(perSeat * group).toLocaleString('en-IN')} (Rs ${perSeat.toLocaleString('en-IN')} × ${group})`;
+    totalBox.classList.remove('hidden');
+  } else {
+    totalBox.classList.add('hidden');
+  }
+}
+
+function showTourismCalcPanel(circuit, km) {
+  const panel = document.getElementById('tourism-calc-result');
+  document.getElementById('tourism-calc-circuit').textContent = `${circuit} — ${km} km`;
+  document.getElementById('tourism-calc-fare').textContent    = `Rs ${tourismFare(km).toLocaleString('en-IN')}`;
+  panel.classList.remove('hidden');
+}
+
+// Circuit card "Select Circuit" buttons
+document.querySelectorAll('.circuit-select-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const circuit = btn.dataset.circuit;
+    const km      = Number(btn.dataset.km);
+
+    // Highlight selected card
+    document.querySelectorAll('.circuit-card').forEach(c => c.classList.remove('selected'));
+    btn.closest('.circuit-card').classList.add('selected');
+
+    // Pre-fill form select
+    const sel = document.getElementById('tour-circuit');
+    if (sel) sel.value = circuit;
+
+    showTourismCalcPanel(circuit, km);
+    updateTourismTotal();
+
+    // Smooth scroll to form
+    document.getElementById('tourism-inquiry-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+});
+
+document.getElementById('tour-circuit')?.addEventListener('change', () => {
+  const circuit = document.getElementById('tour-circuit').value;
+  const km      = TOURISM_CIRCUITS[circuit];
+  if (km) {
+    // Sync card highlight
+    document.querySelectorAll('.circuit-card').forEach(c => {
+      c.classList.toggle('selected', c.dataset.circuit === circuit);
+    });
+    showTourismCalcPanel(circuit, km);
+  } else {
+    document.getElementById('tourism-calc-result')?.classList.add('hidden');
+    document.querySelectorAll('.circuit-card').forEach(c => c.classList.remove('selected'));
+  }
+  updateTourismTotal();
+});
+
+document.getElementById('tour-group')?.addEventListener('input', updateTourismTotal);
+
+document.getElementById('tourism-inquiry-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const statusEl = document.getElementById('tourism-status');
+
+  const dateValue = document.getElementById('tour-date').value;
+  if (dateValue && dateValue < new Date().toISOString().slice(0, 10)) {
+    statusEl.textContent = 'Travel date cannot be in the past.';
+    statusEl.className = 'summary status-err';
+    return;
+  }
+
+  const circuit = document.getElementById('tour-circuit').value;
+  const payload = {
+    contactName:  document.getElementById('tour-name').value.trim(),
+    contactPhone: document.getElementById('tour-phone').value.trim(),
+    circuit,
+    distanceKm:   TOURISM_CIRCUITS[circuit] || null,
+    travelDate:   dateValue,
+    groupSize:    Number(document.getElementById('tour-group').value),
+    message:      document.getElementById('tour-message').value.trim() || null
+  };
+
+  statusEl.textContent = 'Submitting inquiry…';
+  statusEl.className = 'summary';
+
+  try {
+    const res = await api('/api/tourism/inquiries', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const total = (Number(res.estimatedFare) * res.groupSize).toLocaleString('en-IN');
+    statusEl.textContent =
+      `Inquiry #${res.id} submitted! Circuit: ${res.circuit} | ${res.groupSize} pax | ` +
+      `Fare: Rs ${Number(res.estimatedFare).toLocaleString('en-IN')}/seat | Est. total: Rs ${total}. ` +
+      `We will call ${res.contactPhone} to confirm.`;
+    statusEl.className = 'summary status-ok';
+    event.target.reset();
+    document.getElementById('tourism-calc-result')?.classList.add('hidden');
+    document.getElementById('tour-total-display')?.classList.add('hidden');
+    document.querySelectorAll('.circuit-card').forEach(c => c.classList.remove('selected'));
+    if (isAdmin()) loadAdminTourismInquiries();
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.className = 'summary status-err';
+  }
+});
+
+function renderAdminTourismInquiries(inquiries) {
+  const listEl = document.getElementById('admin-tourism-list');
+  if (!inquiries.length) {
+    listEl.innerHTML = '<div class="item muted">No tourism inquiries yet.</div>';
+    return;
+  }
+  listEl.innerHTML = inquiries.map(inq => `
+    <div class="item">
+      <div class="row">
+        <strong>${inq.circuit}</strong>
+        <span class="info-pill tourism-pill">${inq.status}</span>
+      </div>
+      <div class="row muted">
+        <span>${inq.contactName} | ${inq.contactPhone}</span>
+        <span>${inq.distanceKm} km | ${inq.groupSize} pax | ${formatDisplayDate(inq.travelDate)}</span>
+      </div>
+      <div class="row muted">
+        <span>Rs ${Number(inq.estimatedFare).toLocaleString('en-IN')}/seat — Est. total Rs ${(Number(inq.estimatedFare) * inq.groupSize).toLocaleString('en-IN')}</span>
+        <span>Received ${formatDateTime(inq.createdAt)}</span>
+      </div>
+      ${inq.message ? `<div class="row muted"><span class="tourism-msg">"${inq.message}"</span></div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function loadAdminTourismInquiries() {
+  if (!isAdmin()) return;
+  try {
+    const data = await api('/api/admin/tourism/inquiries', { auth: true });
+    renderAdminTourismInquiries(data);
+  } catch (err) {
+    const el = document.getElementById('admin-tourism-list');
+    if (el) el.innerHTML = `<div class="item muted">${err.message}</div>`;
+  }
+}
+
+document.getElementById('admin-tourism-refresh')?.addEventListener('click', () => {
+  loadAdminTourismInquiries();
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
 
 if (!elements.travelDate.value) {
   setJourneyDate(0);

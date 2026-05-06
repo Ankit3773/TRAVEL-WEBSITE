@@ -37,7 +37,7 @@ export JWT_SECRET='<long_random_secret_or_base64_key>'
 export APP_ADMIN_EMAIL='admin@narayantravels.com'
 export APP_ADMIN_PASSWORD='ChangeMe123!'
 export APP_PAYMENT_GATEWAY='MOCK'
-export APP_FRONTEND_ALLOWED_ORIGINS='https://narayantravels.in,https://www.narayantravels.in'
+export APP_FRONTEND_ALLOWED_ORIGINS='https://naryantravel.duckdns.org'
 ```
 
 Start app:
@@ -73,6 +73,7 @@ The frontend is served directly by Spring Boot from `src/main/resources/static`.
 For separate frontend hosting on S3 or Vercel, export the static bundle with `./deploy/frontend/export-static-site.sh`.
 
 ## Deployment
+- Step-by-step deployment file: [`DEPLOYMENT_STEPS.md`](DEPLOYMENT_STEPS.md)
 - Deployment guide: [`deploy/README.md`](deploy/README.md)
 - EC2 backend helper: `deploy/aws/ec2/publish-backend.sh`
 - Frontend export helper: `deploy/frontend/export-static-site.sh`
@@ -230,7 +231,7 @@ Verify payment and finalize booking:
 ```json
 {
   "paymentSessionId": "pay_1234567890",
-  "gatewayPaymentReference": "mock-payment-123"
+  "paymentId": "mock-payment-123"
 }
 ```
 

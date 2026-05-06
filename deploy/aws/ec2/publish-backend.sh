@@ -28,7 +28,12 @@ sudo mv /tmp/.env "$APP_DIR/.env"
 sudo chown -R narayan:narayan "$APP_DIR"
 sudo chmod +x "$APP_DIR/run-prod.sh"
 sudo mv /tmp/narayan-travels.service /etc/systemd/system/narayan-travels.service
-sudo mv /tmp/narayan-travels.conf /etc/nginx/conf.d/narayan-travels.conf
+if sudo grep -q "ssl_certificate" /etc/nginx/conf.d/narayan-travels.conf 2>/dev/null; then
+  echo "Preserving existing HTTPS-enabled nginx config; skipping overwrite."
+  rm -f /tmp/narayan-travels.conf
+else
+  sudo mv /tmp/narayan-travels.conf /etc/nginx/conf.d/narayan-travels.conf
+fi
 sudo systemctl daemon-reload
 sudo systemctl enable narayan-travels
 sudo systemctl restart narayan-travels
